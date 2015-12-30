@@ -124,7 +124,7 @@ FUNC_BUILD_DTIMAGE_TARGET()
 		if ! [ -d $BUILD_TOP_DIR/out/host/linux-x86/bin ] ; then
 			mkdir -p $BUILD_TOP_DIR/out/host/linux-x86/bin
 		fi
-		cp $BUILD_TOP_DIR/kernel/tools/dtbTool $DTBTOOL
+		cp $BUILD_TOP_DIR/${MODEL}/tools/dtbTool $DTBTOOL
 	fi
 
 	BOARD_KERNEL_PAGESIZE=2048

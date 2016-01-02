@@ -6,7 +6,7 @@
 BUILD_TOP_DIR=..
 BUILD_KERNEL_DIR=$(pwd)
 
-BUILD_CROSS_COMPILE=~/working/kernel/arm-eabi-4.8/bin/arm-eabi-
+BUILD_CROSS_COMPILE=/media/lukag/UCompile/cm12/prebuilts/gcc/linux-x86/arm/arm-eabi-4.8/bin/arm-eabi-
 BUILD_JOB_NUMBER=`grep processor /proc/cpuinfo|wc -l`
 
 KERNEL_DEFCONFIG=msm8226-sec_defconfig
@@ -109,7 +109,7 @@ FUNC_APPEND_DTB()
 }
 
 INSTALLED_DTIMAGE_TARGET=${BUILD_KERNEL_OUT_DIR}/dt.img
-DTBTOOL=$BUILD_TOP_DIR/samsung_ms01lte/tools/dtbTool
+DTBTOOL=$BUILD_KERNEL_DIR/tools/dtbTool
 
 FUNC_BUILD_DTIMAGE_TARGET()
 {
@@ -124,7 +124,7 @@ FUNC_BUILD_DTIMAGE_TARGET()
 		if ! [ -d $BUILD_TOP_DIR/out/host/linux-x86/bin ] ; then
 			mkdir -p $BUILD_TOP_DIR/out/host/linux-x86/bin
 		fi
-		cp $BUILD_TOP_DIR/kernel/tools/dtbTool $DTBTOOL
+		cp $BUILD_KERNEL_DIR/tools/dtbTool $DTBTOOL
 	fi
 
 	BOARD_KERNEL_PAGESIZE=2048
@@ -163,7 +163,8 @@ FUNC_BUILD_KERNEL()
 
 	if [ "$TEMP" == "$MODEL" ]; then
 		KERNEL_DEFCONFIG=msm8226-sec_${MODEL}_defconfig
-		make -C $BUILD_KERNEL_DIR O=$BUILD_KERNEL_OUT_DIR -j$BUILD_JOB_NUMBER ARCH=arm \
+		make -C $BUILD_KERNEL_DIR O=$EL   = s3ve3g
+BUILD_KERNEL_OUT_DIR -j$BUILD_JOB_NUMBER ARCH=arm \
 				CROSS_COMPILE=$BUILD_CROSS_COMPILE \
 				$KERNEL_DEFCONFIG \
 				DEBUG_DEFCONFIG=$DEBUG_DEFCONFIG SELINUX_DEFCONFIG=$SELINUX_DEFCONFIG \
@@ -203,6 +204,11 @@ FUNC_EXT_MODULES_TARGET()
 	rm -rf $OUT_MODU
 	mkdir -p $OUT_MODU
 	find $BUILD_KERNEL_OUT_DIR -name "*.ko" -exec cp -fv {} $OUT_MODU \;
+	cd $BUILD_TOP_DIR/mkernel/$PROJECT_NAME
+	mkdir pronto
+	mv wlan.ko pronto/pronto_wlan.ko
+	echo "wlan.ko renamed and moved to pronto/pronto_wlan.ko"
+	cd $BUILD_TOP_DIR
 
 	echo ""
 	echo "===================================="

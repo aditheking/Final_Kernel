@@ -6,6 +6,7 @@
 BUILD_TOP_DIR=..
 BUILD_KERNEL_DIR=$(pwd)
 
+echo "Define YOUR OWN cross compile path"
 BUILD_CROSS_COMPILE=/media/lukag/UCompile/cm12/prebuilts/gcc/linux-x86/arm/arm-eabi-4.8/bin/arm-eabi-
 BUILD_JOB_NUMBER=`grep processor /proc/cpuinfo|wc -l`
 
@@ -100,7 +101,8 @@ FUNC_APPEND_DTB()
 		echo ""
 		echo "dts : $DTS_FILE"
 		echo "dtb : $DTB_FILE"
-		echo "out : $ZIMG_FILE"
+		echo "o
+ut : $ZIMG_FILE"
 		echo ""
 
 		$DTC -p 1024 -O dtb -o $DTB_FILE $DTS_FILE
@@ -166,7 +168,8 @@ FUNC_BUILD_KERNEL()
 		make -C $BUILD_KERNEL_DIR O=$EL   = s3ve3g
 BUILD_KERNEL_OUT_DIR -j$BUILD_JOB_NUMBER ARCH=arm \
 				CROSS_COMPILE=$BUILD_CROSS_COMPILE \
-				$KERNEL_DEFCONFIG \
+			
+	$KERNEL_DEFCONFIG \
 				DEBUG_DEFCONFIG=$DEBUG_DEFCONFIG SELINUX_DEFCONFIG=$SELINUX_DEFCONFIG \
 				SELINUX_LOG_DEFCONFIG=$SELINUX_LOG_DEFCONFIG || exit -1
 	else

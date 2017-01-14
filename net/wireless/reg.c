@@ -919,6 +919,7 @@ static void handle_channel(struct wiphy *wiphy,
 		 */
 		if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 		    wiphy->country_ie_pref & NL80211_COUNTRY_IE_FOLLOW_POWER)
+		 /*	
 		 * Devices that have their own custom regulatory domain
 		 * but also use WIPHY_FLAG_STRICT_REGULATORY will follow the
 		 * passed country IE power settings.

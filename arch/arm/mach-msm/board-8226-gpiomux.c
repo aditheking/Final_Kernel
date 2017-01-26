@@ -11,7 +11,9 @@
  *
  */
 
+#ifdef CONFIG_WCNSS_IRIS_REGISTER_DUMP
 #include <linux/gpio.h>
+#endif
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <mach/board.h>
@@ -19,11 +21,13 @@
 #include <mach/gpiomux.h>
 #include <mach/socinfo.h>
 
+#ifdef CONFIG_WCNSS_IRIS_REGISTER_DUMP
 #define WLAN_CLK      44
 #define WLAN_SET      43
 #define WLAN_DATA0    42
 #define WLAN_DATA1    41
 #define WLAN_DATA2    40
+#endif
 
 #ifdef CONFIG_USB_EHCI_MSM_HSIC
 static struct gpiomux_setting hsic_sus_cfg = {
@@ -175,6 +179,7 @@ static struct gpiomux_setting wcnss_5wire_active_cfg = {
 	.pull = GPIOMUX_PULL_DOWN,
 };
 
+#ifdef CONFIG_WCNSS_IRIS_REGISTER_DUMP
 static struct gpiomux_setting wcnss_5gpio_suspend_cfg = {
         .func = GPIOMUX_FUNC_GPIO,
         .drv  = GPIOMUX_DRV_2MA,
@@ -186,6 +191,7 @@ static struct gpiomux_setting wcnss_5gpio_active_cfg = {
 	.drv  = GPIOMUX_DRV_6MA,
 	.pull = GPIOMUX_PULL_DOWN,
 };
+#endif
 
 static struct gpiomux_setting gpio_i2c_config = {
 	.func = GPIOMUX_FUNC_3,
@@ -779,6 +785,7 @@ static struct msm_gpiomux_config wcnss_5wire_interface[] = {
 	},
 };
 
+#ifdef CONFIG_WCNSS_IRIS_REGISTER_DUMP
 static struct msm_gpiomux_config wcnss_5gpio_interface[] = {
 	{
 		.gpio = 40,
@@ -816,6 +823,7 @@ static struct msm_gpiomux_config wcnss_5gpio_interface[] = {
 		},
 	},
 };
+#endif
 
 static struct gpiomux_setting gpio_suspend_config[] = {
 	{
@@ -1497,6 +1505,7 @@ void __init msm8226_init_gpiomux(void)
 #endif
 }
 
+#ifdef CONFIG_WCNSS_IRIS_REGISTER_DUMP
 static void wcnss_switch_to_gpio(void)
 {
 	/* Switch MUX to GPIO */
@@ -1602,3 +1611,4 @@ u32 wcnss_rf_read_reg(u32 rf_reg_addr)
 
 	return rf_data_received;
 }
+#endif

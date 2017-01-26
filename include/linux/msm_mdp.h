@@ -1,7 +1,7 @@
 /* include/linux/msm_mdp.h
  *
  * Copyright (C) 2007 Google Incorporated
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -81,38 +81,11 @@
 #define MSMFB_ASYNC_BLIT              _IOW(MSMFB_IOCTL_MAGIC, 168, unsigned int)
 #define MSMFB_OVERLAY_PREPARE		_IOWR(MSMFB_IOCTL_MAGIC, 169, \
 						struct mdp_overlay_list)
-#define MSMFB_LPM_ENABLE        _IOWR(MSMFB_IOCTL_MAGIC, 170, unsigned int)
 #define FB_TYPE_3D_PANEL 0x10101010
 #define MDP_IMGTYPE2_START 0x10000
 #define MSMFB_DRIVER_VERSION	0xF9E8D701
 
-/* HW Revisions for different MDSS targets */
-#define MDSS_GET_MAJOR(rev)		((rev) >> 28)
-#define MDSS_GET_MINOR(rev)		(((rev) >> 16) & 0xFFF)
-#define MDSS_GET_STEP(rev)		((rev) & 0xFFFF)
-#define MDSS_GET_MAJOR_MINOR(rev)	((rev) >> 16)
-
-#define IS_MDSS_MAJOR_MINOR_SAME(rev1, rev2)	\
-	(MDSS_GET_MAJOR_MINOR((rev1)) == MDSS_GET_MAJOR_MINOR((rev2)))
-
-#define MDSS_MDP_REV(major, minor, step)	\
-	((((major) & 0x000F) << 28) |		\
-	 (((minor) & 0x0FFF) << 16) |		\
-	 ((step)   & 0xFFFF))
-
-#define MDSS_MDP_HW_REV_100	MDSS_MDP_REV(1, 0, 0) /* 8974 v1.0 */
-#define MDSS_MDP_HW_REV_101	MDSS_MDP_REV(1, 1, 0) /* 8x26 v1.0 */
-#define MDSS_MDP_HW_REV_101_1	MDSS_MDP_REV(1, 1, 1) /* 8x26 v2.0, 8926 v1.0 */
-#define MDSS_MDP_HW_REV_101_2	MDSS_MDP_REV(1, 1, 2) /* 8926 v2.0 */
-#define MDSS_MDP_HW_REV_102	MDSS_MDP_REV(1, 2, 0) /* 8974 v2.0 */
-#define MDSS_MDP_HW_REV_102_1	MDSS_MDP_REV(1, 2, 1) /* 8974 v3.0 (Pro) */
-#define MDSS_MDP_HW_REV_103	MDSS_MDP_REV(1, 3, 0) /* 8084 v1.0 */
-#define MDSS_MDP_HW_REV_103_1	MDSS_MDP_REV(1, 3, 1) /* 8084 v1.1 */
-#define MDSS_MDP_HW_REV_200	MDSS_MDP_REV(2, 0, 0) /* 8092 v1.0 */
-
 enum {
-	NOTIFY_UPDATE_INIT,
-	NOTIFY_UPDATE_DEINIT,
 	NOTIFY_UPDATE_START,
 	NOTIFY_UPDATE_STOP,
 	NOTIFY_UPDATE_POWER_OFF,
@@ -122,7 +95,6 @@ enum {
 	NOTIFY_TYPE_NO_UPDATE,
 	NOTIFY_TYPE_SUSPEND,
 	NOTIFY_TYPE_UPDATE,
-	NOTIFY_TYPE_BL_UPDATE,
 };
 
 enum {
@@ -223,7 +195,6 @@ enum {
 #define MDP_MEMORY_ID_TYPE_FB		0x00001000
 #define MDP_BWC_EN			0x00000400
 #define MDP_DECIMATION_EN		0x00000800
-#define MDP_SMP_FORCE_ALLOC            0x00200000
 #define MDP_TRANSP_NOP 0xffffffff
 #define MDP_ALPHA_NOP 0xff
 
@@ -461,13 +432,13 @@ struct mdp_pa_v2_data {
 	uint32_t global_sat_adj;
 	uint32_t global_val_adj;
 	uint32_t global_cont_adj;
+	uint32_t six_zone_len;
+	uint32_t *six_zone_curve_p0;
+	uint32_t *six_zone_curve_p1;
+	uint32_t six_zone_thresh;
 	struct mdp_pa_mem_col_cfg skin_cfg;
 	struct mdp_pa_mem_col_cfg sky_cfg;
 	struct mdp_pa_mem_col_cfg fol_cfg;
-	uint32_t six_zone_len;
-	uint32_t six_zone_thresh;
-	uint32_t *six_zone_curve_p0;
-	uint32_t *six_zone_curve_p1;
 };
 
 struct mdp_igc_lut_data {
@@ -530,7 +501,7 @@ enum mdss_mdp_blend_op {
 	BLEND_OP_COVERAGE,
 	BLEND_OP_MAX,
 };
-#define DECIMATED_DIMENSION(dim, deci) (((dim) + ((1 << (deci)) - 1)) >> (deci))
+
 #define MAX_PLANES	4
 struct mdp_scale_data {
 	uint8_t enable_pxl_ext;
@@ -1019,8 +990,6 @@ struct mdss_hw_caps {
 	uint8_t rgb_pipes;
 	uint8_t vig_pipes;
 	uint8_t dma_pipes;
-	uint8_t max_smp_cnt;
-	uint8_t smp_per_pipe;
 	uint32_t features;
 };
 
@@ -1137,7 +1106,6 @@ int msm_fb_writeback_dequeue_buffer(struct fb_info *info,
 int msm_fb_writeback_stop(struct fb_info *info);
 int msm_fb_writeback_terminate(struct fb_info *info);
 int msm_fb_writeback_set_secure(struct fb_info *info, int enable);
-int msm_fb_writeback_iommu_ref(struct fb_info *info, int enable);
 #endif
 
 #endif /*_MSM_MDP_H_*/

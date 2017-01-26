@@ -133,7 +133,7 @@
 				      "CCI_I2C_CLK0";
 		qcom,hw-thigh = <20>;
 		qcom,hw-tlow = <28>;
-		qcom,hw-tsu-sto = <6>;
+		qcom,hw-tsu-sto = <12>; //<6>
 		qcom,hw-tsu-sta = <7>;
 		qcom,hw-thd-dat = <13>;
 		qcom,hw-thd-sta = <11>;

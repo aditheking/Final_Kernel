@@ -11,8 +11,9 @@
  */
 
 /* /include/ "msm8974pro-sii8240_mhl-k-r02.dtsi" */
-/include/ "msm8974pro-camera-sensor-patek-r00.dtsi"
-/* /include/ "msm8974pro-fingerprint-sensor-k-r08.dtsi" */
+/* /include/ "msm8974pro-camera-sensor-k-r04.dtsi" */
+/include/ "msm8974pro-fingerprint-sensor-k-r08.dtsi"
+/include/ "msm8974pro-w1.dtsi"
 
 / {
 	aliases {
@@ -30,14 +31,20 @@
 	serial@f995d000 {
 		status = "ok";
 	};
-
-	max77826,vibrator {
-		compatible = "max77826,vibrator";
-		vibrator,ldo_name = "max77826_ldo9";
-		vibrator,ldo_volt = <3000000>;
+/*
+	samsung,vibrator {
+		compatible = "vibrator";
+		samsung,pmic_vib_pwm = <&msmgpio 27 0>;
+		samsung,pmic_vib_pwm_jpn = <&msmgpio 59 0>;
+		samsung,vib_model = <1>;
+		samsung,pmic_vib_en = <0>;
+		samsung,pmic_haptic_pwr_en = <0>;
+		samsung,is_pmic_vib_pwm = <0>;
+		samsung,pwm_period_us = <40>;
+		samsung,duty_us = <36>;
 		status = "ok";
 	};
-
+*/
 	i2c@f9924000 {
 		status = "okay";
 		adpd142@64 {
@@ -57,10 +64,6 @@
 			pn547,irq-gpio = <&msmgpio 59 0x00>;
 			pn547,ven-gpio = <&pma8084_gpios 9 0x00>;
 			pn547,firm-gpio = <&msmgpio 23 0x00>;
-		};
-		fan53555@60 {
-			compatible = "fan53555,fan53555-dcdc";
-			reg = <0x60>;
 		};
 	};
 
@@ -123,22 +126,22 @@
 		cell-index = <21>;
 		compatible = "i2c-gpio";
 		gpios = <&msmgpio 95 0 /* sda */
-			&msmgpio 96 0 /* scl */
+			 &msmgpio 96 0 /* scl */
 			>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		touchkey@20 {
-			compatible = "abov,mc96ft16xx";
+		cypress_touchkey@20 {
+			compatible = "cypress,cypress-tkey";
 			reg = <0x20>;
 			interrupt-parent = <&pma8084_gpios>;
 			interrupts = <6 0>;
 			vdd_led-supply = <&pma8084_l19>;
-			abov,scl-gpio = <&msmgpio 96 0x00>;
-			abov,sda-gpio = <&msmgpio 95 0x00>;
-			abov,irq-gpio = <&pma8084_gpios 6 0x1>;
-			abov,hall_flip-gpio = <&pma8084_gpios 1 0x0>; /* just for read */
-			abov,vtouch_3p3 = "max77826_ldo6";
+			cypress,scl-gpio = <&msmgpio 96 0x00>;
+			cypress,sda-gpio = <&msmgpio 95 0x00>;
+			cypress,irq-gpio = <&pma8084_gpios 6 0x1>;
+			cypress,tkey-keycodes = <254 158>;
+			cypress,i2c-pull-up = <1>;
 		};
 	};
 
@@ -184,7 +187,7 @@
 			label = "hall_flip";
 			gpios = <&pma8084_gpios 1 0x0>;
 			linux,input-type = <1>;
-			linux,code = <0x00>;	/* SW_LID */
+			linux,code = <0x15>;
 			gpio-key,wakeup;
 			debounce-interval = <15>;
 	                /*HALL_IC, interrupt w/a code disable*/
@@ -238,11 +241,9 @@
 			ssp,mcu_int2-gpio = <&msmgpio 86 0x00>;
 			ssp,ap_int-gpio = <&msmgpio 89 0x00>;
 			ssp,rst-gpio = <&msmgpio 9 0x00>;
-			ssp,ges_vdd_1p8 = "max77826_ldo11";
-			ssp,ges_led_3p3 = "max77826_ldo12";
 			ssp,acc-position = <6>;
-			ssp,mag-position = <1>;
-			ssp,ap-rev=<0>;
+			ssp,mag-position = <7>;
+			ssp,ap-rev=<5>;
 			qcom,temphumidity_sensor-vadc = <&pma8084_vadc>;
 		};
 	};
@@ -251,28 +252,51 @@
 		status = "disabled";
 	};
 
-
-	i2c@f9923000 { // BLSP1 QUP1
+	i2c@f9923000 {
 		status = "okay";
 		qcom,scl-gpio = <&msmgpio 3 0>;
 		qcom,sda-gpio = <&msmgpio 2 0>;
-		qcom,i2c-bus-freq = <384000>; //384000
-		qcom,i2c-src-freq = <19200000>;
-		synaptics_rmi4_i2c@20 {
-				compatible = "synaptics,rmi4-ts";
-				reg = <0x20>;
+
+		cyt_tsp@24 {
+				compatible = "cy,cyttsp5_i2c_adapter";
+				reg = <0x24>;
 				interrupt-parent = <&pma8084_gpios>;
 				interrupts = <8 0>;
-				synaptics,irq_gpio = <&pma8084_gpios 8 0x01>;
-				synaptics,tsp_sel = <&msmgpio 0 0>;
-				synaptics,tsp_sda = <&msmgpio 2 0>;
-				synaptics,tsp_scl = <&msmgpio 3 0>;
-				synaptics,supply-num = <2>;
-				synaptics,supply-name = "max77826_ldo8", "max77826_ldo15"; //ldo8=3.3v ldo15=1.8v
-				synaptics,hall_flip-gpio = <&pma8084_gpios 1 0x0>; /* just for read */
-				synaptics,fpga_mainclk = <&msmgpio 58 0>;
-				synaptics,cresetb = <&pma8084_gpios 11 0x1>;
-				synaptics,cdone = <&msmgpio 34 0>;
+				cy,adapter_id = "cyttsp5_i2c_adapter";
+				cy,core {
+					cy,name = "cyttsp5_core";
+					cy,hid_desc_register = <1>;
+					cy,irq_gpio = <&pma8084_gpios 8 0x01>;
+					cy,tsp_sel = <&msmgpio 0 0>;
+					cy,tsp_sda = <&msmgpio 2 0>;
+					cy,tsp_scl = <&msmgpio 3 0>;
+					cy,cresetb = <&pma8084_gpios 11 0x1>; //FPGA CRESET_B
+					cy,supply-num = <2>;
+					cy,supply-name = "max77826_ldo8", "max77826_ldo15"; //ldo8=3.3v ldo15=1.8v
+					cy,mt {
+						cy,name = "cyttsp5_mt";
+						cy,inp_dev_name = "sec_touchscreen";
+						cy,abs =
+							/* ABS_MT_POSITION_X, CY_ABS_MIN_X, CY_ABS_MAX_X, 0, 0 */
+							<0x35 0 720 0 0
+							/* ABS_MT_POSITION_Y, CY_ABS_MIN_Y, CY_ABS_MAX_Y, 0, 0 */
+							0x36 0 1280 0 0
+							/* ABS_MT_PRESSURE, CY_ABS_MIN_P, CY_ABS_MAX_P, 0, 0 */
+							0x3a 0 255 0 0
+							/* CY_IGNORE_VALUE, CY_ABS_MIN_W, CY_ABS_MAX_W, 0, 0 */
+							0xffff 0 255 0 0
+							/* ABS_MT_TRACKING_ID, CY_ABS_MIN_T, CY_ABS_MAX_T, 0, 0 */
+							0x39 0 15 0 0
+							/* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
+							0x30 0 255 0 0
+							/* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
+							0x31 0 255 0 0
+							/* ABS_MT_ORIENTATION, -128, 127, 0, 0 */
+							0x34 0xfffffed7 127 0 0
+							/* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
+							0x37 0 1 0 0>;
+					};
+				};
 		};
 	};
 
@@ -329,14 +353,13 @@
 	sound {
 		qcom,model = "msm8974-taiko-mtp-snd-card";
 		qcom,cdc-micbias2-headset-only;
-		qcom,earmic-bias-gpio = <&msmgpio 85 0>;		
 
 		qcom,audio-routing =
 			"RX_BIAS", "MCLK",
 			"LDO_H", "MCLK",
 			"AIF4 MAD", "MCLK",
-			"AMIC2", "Ear Mic Bias",
-			"Ear Mic Bias", "Headset Mic",
+			"AMIC2", "MIC BIAS2 External",
+			"MIC BIAS2 External", "Headset Mic",
 			"DMIC1", "MIC BIAS1 External",
 			"MIC BIAS1 External", "Digital Mic1",
 			"DMIC2", "Main Mic Bias",
@@ -363,6 +386,7 @@
 		compatible = "sec_jack";
 		qcom,earjack-read-vadc = <&pma8084_vadc>;
 		qcom,earjack-detect-gpio = <&pma8084_gpios 20 0>;
+		qcom,earjack-micbias-gpio = <&msmgpio 85 0>;
 		qcom,earjack-sendend-gpio = <&msmgpio 77 0>;
 		qcom,earjack-fsa_en-expander-gpio = <310>;
 		qcom,send-end-active-high;
@@ -394,7 +418,7 @@
 
 		battery,adc_check_count = <5>;
 
-		battery,cable_check_type = <4>; /* SEC_BATTERY_CABLE_CHECK_PSY */
+		battery,cable_check_type = <6>; /* SEC_BATTERY_CABLE_CHECK_PSY | SEC_BATTERY_CABLE_CHECK_NOINCOMPATIBLECHARGE */
 		battery,cable_source_type = <1>; /* SEC_BATTERY_CABLE_SOURCE_EXTERNAL */
 		battery,event_check;
 		battery,event_waiting_time = <600>;
@@ -434,13 +458,13 @@
 		   SEC_BATTERY_FULL_CONDITION_NOTIMEFULL |
 		   SEC_BATTERY_FULL_CONDITION_VCELL */
 		battery,full_condition_type = <13>;
-		battery,full_condition_soc = <93>;
-		battery,full_condition_vcell = <4250>;
+		battery,full_condition_soc = <97>;
+		battery,full_condition_vcell = <4350>;
 
 		battery,recharge_check_count = <1>;
 		battery,recharge_condition_type = <4>; /* SEC_BATTERY_RECHARGE_CONDITION_VCELL */
 		battery,recharge_condition_soc = <98>;
-		battery,recharge_condition_vcell = <4300>;
+		battery,recharge_condition_vcell = <4350>;
 
 		battery,charging_total_time = <21600>;
 		battery,recharging_total_time = <5400>;
@@ -454,12 +478,12 @@
 			battery,chg_polarity_en = <0>;
 			battery,chg_gpio_status = <0>;
 			battery,chg_polarity_status = <0>;
-			battery,chg_float_voltage = <4350>;
+			battery,chg_float_voltage = <4400>;
 			battery,ovp_uvlo_check_type = <3>; /* SEC_BATTERY_OVP_UVLO_CHGPOLLING */
 			battery,full_check_type = <7>; /* SEC_BATTERY_FULLCHARGED_CHGPSY */
 
-			battery,input_current_limit = <1200 460 460 1200 460 900 1000 460 460 1000 760 1200 1200 460 1200 400 700 1200 300 1000 1200 460 460>;
-			battery,fast_charging_current = <1400 0 460 1400 460 1200 1000 460 0 1200 900 1400 1400 0 1200 400 700 1200 300 1000 1400 0 0>;
+			battery,input_current_limit = <1800 460 460 1800 460 900 1000 460 460 1000 760 1800 1800 460 1300 400 700 1300 300 1000 1800 460 460>;
+			battery,fast_charging_current = <2100 0 460 2100 460 1200 1000 460 0 1200 900 2100 2100 0 1300 400 700 1300 300 1000 2100 0 0>;
 			battery,full_check_current_1st = <200 0 200 200 200 200 200 200 0 200 200 200 200 0 200 200 200 200 200 200 200 0 0>;
 			battery,full_check_current_2nd = <2400 0 2400 2400 2400 2400 2400 2400 0 2400 2400 2400 2400 0 2400 2400 2400 2400 2400 2400 2400 0 0>;
 		};
@@ -650,13 +674,12 @@
 	};
 
 	gpio@c300 { /* GPIO 4 */
-		/* LCD_ESD_DETECT */
+		/* Focus button */
 		qcom,mode = <0>;		/* Digital input */
-		qcom,pull = <5>;		/* Pull none */
+		qcom,pull = <0>;		/* Pull up 30 uA */
 		qcom,vin-sel = <2>;		/* PMA8084 S4 = 1.8 V */
 		qcom,src-sel = <0>;		/* Constant */
 		qcom,master-en = <1>;
-		qcom,out-strength = <2>;
 	};
 
 	gpio@c400 { /* GPIO 5 */

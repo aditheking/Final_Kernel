@@ -12,8 +12,7 @@
 
 /include/ "msm8226-camera-sensor-mtp-atlantic3G-rev01.dtsi"
 /include/ "dsi_panel_magna_octa_720p_video_kmini3g_02.dtsi"
-/include/ "msm8928-kmini-w1.dtsi"
-/include/ "msm8228-sec-atlantic3g-battery-data.dtsi"
+/include/ "msm8928-w1.dtsi"
 
 &rpm_bus {
 	rpm-regulator-ldoa15 {
@@ -175,10 +174,10 @@
 			interrupts = <65 0>;
 			cm36686,irq_gpio = <&msmgpio 65 0x1>;
 			cm36686,leden_gpio = <&msmgpio 0 0>;
-			cm36686,default_hi_thd = <14>;
-			cm36686,default_low_thd = <9>;
-			cm36686,cancel_hi_thd = <10>;
-			cm36686,cancel_low_thd = <5>;
+			cm36686,default_hi_thd = <11>;
+			cm36686,default_low_thd = <7>;
+			cm36686,cancel_hi_thd = <11>;
+			cm36686,cancel_low_thd = <7>;
 			reg_vdd-supply = <&pm8226_l19>;
 			reg_vio-supply = <&pm8226_lvs1>;
 			status = "okay";
@@ -349,32 +348,72 @@
 		/*qcom,cdc-vdd-spkr-gpios = <&pm8226_gpios 2 0>;*/
 		vdd-earjack-supply = <&pm8226_l19>;
 	};
-	memory_hole: qcom,msm-mem-hole {
-                compatible = "qcom,msm-mem-hole";
-                qcom,memblock-remove = <0x08400000 0x2f00000 /* MODEM */
-                                        0x0c300000 0x100000 /* MBA */
-                                        0x0ca00000 0x2c00000 /* Reserve 7MB for TZ apps,1 MB for TIMA LOG(NON RKP case), 7 MB for WCNSS, 29 MB for ADSP + VENUS*/
-                                        0x0fa00000 0x500000 /* Address and Size of Hole */
-                                        0x10000000 0x600000>; /* Reserve 6MB for TIMA logging(RKP case) */
-        };
 
-	qcom,qseecom@d980000 {
-		compatible = "qcom,qseecom";
-		reg = <0x0ca00000 0x700000>;
-		reg-names = "secapp-region";
-		qcom,disk-encrypt-pipe-pair = <2>;
-		qcom,hlos-ce-hw-instance = <0>;
-		qcom,qsee-ce-hw-instance = <0>;
-		qcom,support-bus-scaling;
-		qcom,msm-bus,name = "qseecom-noc";
-		qcom,msm-bus,num-cases = <4>;
-		/* qcom,msm-bus,active-only = <0>; */
-		qcom,msm-bus,num-paths = <1>;
-		qcom,msm-bus,vectors-KBps =
-				<55 512 0 0>,
-				<55 512 0 0>,
-				<55 512 120000 1200000>,
-				<55 512 393600 3936000>;
+	battery {
+		status = "okay";
+		compatible = "samsung,sec-battery";
+		battery,vendor = "SDI SDI";
+		battery,charger_name = "qpnp-chg";
+		battery,fuelgauge_name = "bms";
+		battery,technology = <2>; /* POWER_SUPPLY_TECHNOLOGY_LION */
+
+		battery,chip_vendor = "QCOM";
+		battery,temp_adc_type = <1>; /* SEC_BATTERY_ADC_TYPE_AP */
+
+		battery,polling_time = <10 30 30 30 3600>;
+
+		battery,adc_check_count = <5>;
+
+		battery,cable_check_type = <4>; /* SEC_BATTERY_CABLE_CHECK_PSY */
+		battery,cable_source_type = <3>; /* SEC_BATTERY_CABLE_SOURCE_EXTERNAL */
+		battery,event_waiting_time = <600>;
+		battery,polling_type = <1>; /* SEC_BATTERY_MONITOR_ALARM */
+		battery,monitor_initial_count = <3>;
+
+		battery,battery_check_type = <5>; /* SEC_BATTERY_CHECK_CHARGER */
+		battery,check_count = <0>;
+		battery,check_adc_max = <1440>;
+		battery,check_adc_min = <0>;
+
+		battery,ovp_uvlo_check_type = <3>; /* SEC_BATTERY_OVP_UVLO_CHGPOLLING */
+
+		battery,thermal_source = <2>; /* SEC_BATTERY_THERMAL_SOURCE_ADC */
+		battery,temp_check_type = <2>; /* SEC_BATTERY_TEMP_CHECK_TEMP */
+		battery,temp_check_count = <1>;
+		battery,full_check_type = <2>; /* SEC_BATTERY_FULLCHARGED_FG_CURRENT */
+		battery,full_check_type_2nd = <3>; /* SEC_BATTERY_FULLCHARGED_TIME */
+		battery,full_check_count = <1>;
+		battery,chg_gpio_full_check = <0>;
+		battery,chg_polarity_full_check = <1>;
+
+		/* SEC_BATTERY_FULL_CONDITION_SOC |
+		   SEC_BATTERY_FULL_CONDITION_NOTIMEFULL |
+		   SEC_BATTERY_FULL_CONDITION_VCELL */
+		battery,full_condition_type = <13>;
+		battery,full_condition_soc = <97>;
+		battery,full_condition_vcell = <4350>;
+
+		battery,recharge_check_count = <1>;
+		battery,recharge_condition_type = <4>; /* SEC_BATTERY_RECHARGE_CONDITION_VCELL */
+		battery,recharge_condition_soc = <98>;
+		battery,recharge_condition_vcell = <4350>;
+
+		battery,charging_total_time = <21600>;
+		battery,recharging_total_time = <5400>;
+		battery,charging_reset_time = <0>;
+
+		charger{
+			status = "disable";
+			/* Charger */
+			battery,charger_name = "qpnp-chg";
+			battery,ovp_uvlo_check_type = <3>; /* SEC_BATTERY_OVP_UVLO_CHGPOLLING */
+			battery,full_check_type = <2>; /* SEC_BATTERY_FULLCHARGED_FG_CURRENT */
+
+			battery,input_current_limit = <1000 500 500 1000 500 1000 1000 500 500 1000 650 1000 1000 500 500 300 1000 1000 300 1000 1000 500 500>;
+			battery,fast_charging_current = <1000 0 500 1000 500 1000 1000 500 0 1000 750 1000 1000 (-1) 500 300 1000 1000 300 1000 1000 0 0>;
+			battery,full_check_current_1st = <180 0 180 180 180 180 180 180 0 180 180 180 180 0 180 180 180 180 180 180 180 0 0>;
+			battery,full_check_current_2nd = <2400 0 2400 2400 2400 2400 2400 2400 0 2400 2400 2400 2400 0 2400 2400 2400 2400 2400 2400 2400 0 0>;
+		};
 	};
 };
 
@@ -620,12 +659,6 @@
 	};
 
 	gpio@c500 { /* GPIO 6 */
-		qcom,mode = <1>;                /* Digital output */
-                qcom,output-type = <0>; /* CMOS logic */
-                qcom,pull = <5>;                /* QPNP_PIN_PULL_NO */
-                qcom,vin-sel = <3>;             /* QPNP_PIN_VIN2 */
-                qcom,out-strength = <3>;/* QPNP_PIN_OUT_STRENGTH_HIGH */
-		qcom,master-en = <1>;
 	};
 
 	gpio@c600 { /* GPIO 7 */
@@ -769,8 +802,6 @@
 	qcom,battery-data = <&mtp_batterydata>;
 	qcom,vddmax-mv = <4400>;
 	qcom,vddsafe-mv = <4400>;
-	qcom,cool-bat-decidegc = <(-100)>; 
-	qcom,warm-bat-decidegc = <700>;
 };
 
 &rpm_bus {

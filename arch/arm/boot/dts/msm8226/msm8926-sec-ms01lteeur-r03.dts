@@ -18,7 +18,7 @@
 / {
 	model = "[SM-G7105 MS01-LTE-EUR]Rev-03 8926 MTP";
 	compatible = "qcom,msm8926-mtp", "qcom,msm8926", "qcom,mtp";
-	qcom,msm-id = <200 8 0x10005>;
+	qcom,msm-id = <0xC808FF01 5 0x10000>;
 };
 
 &soc {

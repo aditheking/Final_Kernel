@@ -23,9 +23,6 @@
 		qcom,rst-gpio = <&pma8084_gpios 17 0>;
 		qcom,te-gpio = <&msmgpio 12 0>;
 
-		qcom,panel-roi-alignment = <8 8 1 1 1 1>;
-		qcom,partial-update-enabled;
-
 		mdss-pan-broadcast-mode=<0>;
 
 		qcom,mdss-pan-res = <1080 1920>;
@@ -121,12 +118,12 @@
 				29 01 00 00 00 00 03 F0 A5 A5		/* TEST KEY Disable */
 				29 01 00 00 00 00 03 FC A5 A5		/* TEST KEY Disable */
 			];
-		qcom,on-cmds-dsi-state = "dsi_lp_mode";
+		qcom,on-cmds-dsi-state = "DSI_HS_MODE";
 		qcom,panel-display-off-seq = [
 				05 01 00 00 0A 00 02 28 00			/* wait 10ms(0x0A) */
 				05 01 00 00 78 00 02 10 00			/* wait 120ms(0x78) */
 			];
-		qcom,off-cmds-dsi-state = "dsi_hs_mode";
+		qcom,off-cmds-dsi-state = "DSI_HS_MODE";
 
 		/*used for only evt1 panel and over*/
 		qcom,panel-hsync-on-seq = [
@@ -198,7 +195,7 @@
 			29 01 00 00 00 00 02 B0 20
 			29 01 00 00 00 00 02 D7 00		/* Look up table (2) */
 			29 01 00 00 00 00 02 FE 80
-			29 01 00 00 64 00 02 FE 00		/* wait 100ms(0x78) */
+			29 01 00 00 78 00 02 FE 00		/* wait 120ms(0x78) */
 			29 01 00 00 00 00 03 F0 A5 A5
 			29 01 00 00 00 00 03 FC A5 A5
 		];

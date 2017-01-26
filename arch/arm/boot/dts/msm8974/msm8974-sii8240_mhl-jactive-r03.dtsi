@@ -60,9 +60,9 @@
 		};
 	};
 
-	qcom,hdmi_tx@fd922100 {
-			qcom,hdmi-tx-ddc-clk = <&msmgpio 32 0>;
-			qcom,hdmi-tx-ddc-data = <&msmgpio 33 0>;
-			mhl,sec-mhl-map = <&sec_mhl>;
+qcom,hdmi_tx@fd922100 {
+	qcom,hdmi-tx-ddc-clk = <&msmgpio 32 0>;
+	qcom,hdmi-tx-ddc-data = <&msmgpio 33 0>;
 	};
+
 };

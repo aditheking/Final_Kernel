@@ -498,11 +498,6 @@
 		};
 	};
 
-	/* BLSP#3 */
-	i2c@f9925000 {
-		status = "disabled";
-	};
-
 	aliases {
 		spi2 = &spi_2;
 	};

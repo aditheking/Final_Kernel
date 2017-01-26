@@ -440,45 +440,15 @@
 			battery,chg_gpio_status = <0>;
 			battery,chg_polarity_status = <0>;
 			battery,chg_float_voltage = <4390>;
-			battery,ovp_uvlo_check_type = <4>; /* SEC_BATTERY_OVP_UVLO_CHGINT */
-			battery,chg_int = <&msmgpio 54 0x1>;
-			battery,chg_irq_attr = <0x3>;
+			battery,ovp_uvlo_check_type = <3>; /* SEC_BATTERY_OVP_UVLO_CHGPOLLING */
 			battery,full_check_type = <7>; /* SEC_BATTERY_FULLCHARGED_CHGPSY */
 
-			battery,input_current_limit = <460 460 460 1000 460 900 1000 460 460 1000 650 1000 1000 460 1000 300 700 1000 300 1000 1000 460 460>;
-			battery,fast_charging_current = <460 0 460 1300 460 1200 1000 460 0 1200 750 1300 1300 0 1300 300 700 1300 300 1000 1300 0 0>;
+			battery,input_current_limit = <1000 460 460 1000 460 900 1000 460 460 1000 650 1000 1000 460 1000 300 700 1000 300 1000 1000 460 460>;
+			battery,fast_charging_current = <1300 0 460 1300 460 1200 1000 460 0 1200 750 1300 1300 0 1300 300 700 1300 300 1000 1300 0 0>;
 			battery,full_check_current_1st = <150 0 150 150 150 150 150 150 0 150 150 150 150 0 150 150 150 150 150 150 150 0 0>;
 			battery,full_check_current_2nd = <2400 0 2400 2400 2400 2400 2400 2400 0 2400 2400 2400 2400 0 2400 2400 2400 2400 2400 2400 2400 0 0>;
 		};
 	};
-
-	memory_hole: qcom,msm-mem-hole {
-		compatible = "qcom,msm-mem-hole";
-		qcom,memblock-remove = <0x08000000 0x5900000
-				0x0dc00000 0x1d00000  /* Address and size of the hole */
-				0x0fa00000 0x500000
-				0x10600000 0x600000   /* 6MB for TIMA */
-				0x3f400000 0x800000>; /* Reserve 8MB for TZ apps */
-	};
-
-	qcom,qseecom@d980000 {
-		compatible = "qcom,qseecom";
-		reg = <0x3f400000 0x800000>;
-		reg-names = "secapp-region";
-		qcom,disk-encrypt-pipe-pair = <2>;
-		qcom,hlos-ce-hw-instance = <0>;
-		qcom,qsee-ce-hw-instance = <0>;
-		qcom,msm-bus,name = "qseecom-noc";
-		qcom,msm-bus,num-cases = <4>;
-		/* qcom,msm-bus,active-only = <0>; */
-		qcom,msm-bus,num-paths = <1>;
-		qcom,msm-bus,vectors-KBps =
-				<55 512 0 0>,
-				<55 512 3936000 393600>,
-				<55 512 3936000 393600>,
-				<55 512 3936000 393600>;
-	};
-
 };
 
 &usb_otg {
@@ -492,7 +462,7 @@
 			2 &spmi_bus 0x0 0x0 0x9 0x0>;
 	interrupt-names = "core_irq", "async_irq", "pmic_id_irq";
 
-	qcom,hsusb-otg-mode = <1>;
+	qcom,hsusb-otg-mode = <3>;
 	vbus_otg-supply = <&pm8226_chg_otg>;
 	qcom,hsusb-otg-phy-init-seq =
 			<0x44 0x80 0x6F 0x81 0x24 0x82 0x13 0x83 0xffffffff>;
@@ -649,7 +619,7 @@
 		qcom,output-type = <0>;	/* CMOS logic */
 		qcom,pull = <5>;		/* QPNP_PIN_PULL_NO*/
 		qcom,vin-sel = <3>;		/* QPNP_PIN_VIN3 */
-		qcom,out-strength = <1>;/* QPNP_PIN_OUT_STRENGTH_LOW */
+		qcom,out-strength = <3>;/* QPNP_PIN_OUT_STRENGTH_HIGH */
 		qcom,src-sel = <2>;		/* QPNP_PIN_SEL_FUNC_1 */
 		qcom,master-en = <1>;	/* Enable GPIO */
 	};

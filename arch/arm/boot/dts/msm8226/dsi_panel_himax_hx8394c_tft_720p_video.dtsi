@@ -33,9 +33,9 @@
 		qcom,mdss-pan-physical-height-dimension = <132>; /*<Height> real size of panel in mm */
 		qcom,mdss-dsi-lp11-init;
 		qcom,mdss-dsi-init-delay-us = <100>;
-		qcom,mdss-dsi-h-front-porch = <130>;
-		qcom,mdss-dsi-h-back-porch = <130>;
-		qcom,mdss-dsi-h-pulse-width = <64>;
+		qcom,mdss-dsi-h-front-porch = <16>;
+		qcom,mdss-dsi-h-back-porch = <42>;
+		qcom,mdss-dsi-h-pulse-width = <16>;
 		qcom,mdss-dsi-h-sync-skew = <0>;
 		qcom,mdss-dsi-v-front-porch = <9>;
 		qcom,mdss-dsi-v-back-porch = <20>;
@@ -53,7 +53,7 @@
 		qcom,mdss-dsi-bl-min-level = <1>;
 		qcom,mdss-dsi-bl-max-level = <255>;
 		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-		qcom,mdss-pan-dsi-t-clk-pre = <0x1C>;
+		qcom,mdss-pan-dsi-t-clk-pre = <0x18>;
 		qcom,mdss-pan-dsi-t-clk-post = <0x04>;
 		qcom,mdss-dsi-lane-0-state;
 		qcom,mdss-dsi-lane-1-state;
@@ -65,9 +65,9 @@
 		qcom,mdss-force-clk-lane-hs = <1>;
 		qcom,mdss-dsi-lane-map = <0>;
 		qcom,mdss-dsi-h-sync-pulse = <1>;
-		qcom,mdss-dsi-panel-timings = [8B 1E 14 00 44 48 18 22 19 03 04 00];
+		qcom,mdss-dsi-panel-timings = [67 1F 17 00 2F 2D 1C 21 12 03 04 00];
 		qcom,platform-strength-ctrl = [ff 06];
-		qcom,platform-regulator-settings = [07 08 07 00 20 07 01];
+		qcom,platform-regulator-settings = [07 09 03 00 20 00 01];
 		qcom,mdss-dsi-on-command = [
 			/* powersetting_01 ~ powersetting_03 */
 			39 01 00 00 02 00 04 B9 FF 83 94
@@ -80,7 +80,7 @@
 								 15 14 05 10 10 08 00 45 34 12 12 47 07 00 00 14
 								 08 00 00 0A 00 01 00 00 00 00 00 00 00 05 05 05
 								 02 10 07 07 00
-			39 01 00 00 02 00 10 B2 2D 64 14 09 22 1C 14 09 1C 4D 00 04 30 44 24
+			39 01 00 00 02 00 10 B2 05 64 14 09 22 1C 08 08 1C 4D 00 04 30 44 24
 			39 01 00 00 02 00 17 B4 00 FF 5C 56 5C 56 5C 56 01 62 01 62 5C 56 5C
 								 56 5C 56 01 62 01 62
 			39 01 00 00 02 00 02 CC 05
@@ -95,22 +95,22 @@
 			39 01 00 00 02 00 03 C0 30 11
 			39 01 00 00 02 00 04 C7 00 00 20
 			/* gammasetting_01 ~ gammasetting_08 */
-			39 01 00 00 02 00 2b E0 08 26 2A 2A 27 3F 33 46 0A 0A 0C 17 0F 13 15
-								 12 14 06 0F 0F 13 08 26 2A 2A 27 3F 33 46 0A 0A
+			39 01 00 00 02 00 2b E0 08 26 2A 2E 30 3F 33 48 09 0A 0C 17 0F 13 15
+								 12 14 06 0F 0F 13 08 26 2A 2E 30 3F 33 48 09 0A
 								 0C 17 0F 13 15 12 14 06 0F 0F 13
 			39 01 00 00 02 00 02 BD 00
-			39 01 00 00 02 00 2c C1 01 00 06 0B 11 18 1E 27 31 3A 42 49 50 58 5F
-								 68 71 79 81 89 90 99 A0 A7 AE B6 BD C5 CD D4 DB E3
-								 EB F5 00 00 00 00 00 00 00 00 00
+			39 01 00 00 02 00 2c C1 01 00 04 0A 14 1D 26 31 3A 42 4A 52 59 60 68
+								 71 79 81 88 90 97 9F A5 AD B4 BA C2 C9 D0 D8 DE
+								 E6 ED F5 00 00 00 00 00 00 00 00 00
 			39 01 00 00 02 00 02 BD 01
-			39 01 00 00 02 00 2b C1 00 06 0B 11 19 21 29 33 3C 44 4B 53 5A 61 6A
-								 73 7C 84 8C 94 9C A3 AB B3 BA C2 CA D2 DA E2 EB
+			39 01 00 00 02 00 2b C1 00 04 0B 14 1E 28 32 3B 44 4B 53 5A 61 6A 73
+								 7C 83 8B 93 9B A2 A9 B1 B8 BF C6 CE D5 DD E4 EC
 								 F4 FB 00 00 00 00 00 00 00 00 00
 			39 01 00 00 02 00 02 BD 02
-			39 01 00 00 02 00 2b C1 00 06 0C 13 1C 25 2F 39 42 4A 52 5A 62 6B 74
-								 7D 85 8D 96 9E A5 AC B4 BC C3 CC D3 DA E2 EA F5 FB
-								 FF 00 00 00 00 00 00 00 00 00
-			39 01 00 00 78 00 02 BD 00
+			39 01 00 00 02 00 2b C1 00 04 0B 15 1F 2A 35 3F 48 50 58 5F 67 71 7A
+								 82 8A 92 9A A1 A8 B0 B7 BE C6 CE D5 DC E4 EC F4
+								 FB FF 00 00 00 00 00 00 00 00 00
+			39 01 00 00 02 00 02 BD 00
 			/* displayon_01 ~ displayon_04*/
 			05 01 00 00 B4 00 02 11 00
 			39 01 00 00 02 00 2d D5 24 25 18 18 19 19 06 07 04 05 02 03 00 01 20
@@ -154,10 +154,7 @@
 		compatible = "qcom,mdss-dsi-ctrl";
 		label = "MDSS DSI CTRL->0";
 		cell-index = <0>;
-		reg = 	<0xfd922800 0x1f8>,
-			<0xfd922b00 0x2b0>,
-			<0xfd828000 0x108>;
-		reg-names = "dsi_ctrl", "dsi_phy", "mmss_misc_phys";
+		reg = <0xfd922800 0x600>;
 		qcom,platform-reset-gpio = <&msmgpio 25 0>;
 		vddio-supply = <&pm8226_l8>;
 		vdda-supply = <&pm8226_l4>;

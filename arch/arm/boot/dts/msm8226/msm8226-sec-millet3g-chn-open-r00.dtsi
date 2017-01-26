@@ -686,7 +686,6 @@
 	qcom,battery-data = <&mtp_batterydata>;
 	qcom,v-cutoff-uv = <3350000>;
 	qcom,chg-term-ua = <250000>;
-	qcom,max-voltage-uv = <4340000>;
 };
 
 &pm8226_chg {

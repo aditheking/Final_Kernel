@@ -169,8 +169,6 @@
 			reg = <0x1D>;
 			interrupt-parent = <&msmgpio>;
 			interrupts = <54 0>;
-			stm,scl = <&msmgpio 7 0>;
-			stm,sda = <&msmgpio 6 0>;
 			stm,irq_gpio = <&msmgpio 54 0x00>;
 			stm,reg_vdd = "8226_l19";
 			stm,reg_vio = "8226_lvs1";
@@ -616,13 +614,11 @@
 	};
 
 	gpio@c400 { /* GPIO 5 */
-		qcom,mode = <1>;		/* Digital output */
-		qcom,output-type = <0>;	/* CMOS logic */
-		qcom,pull = <5>;		/* QPNP_PIN_PULL_NO*/
-		qcom,vin-sel = <3>;		/* QPNP_PIN_VIN3 */
-		qcom,out-strength = <3>;/* QPNP_PIN_OUT_STRENGTH_HIGH */
+		qcom,mode = <0>;		/* QPNP_PIN_MODE_DIG_IN */
+		qcom,pull = <5>;		/* QPNP_PIN_PULL_NO */
+		qcom,vin-sel = <2>;		/* QPNP_PIN_VIN2 */
 		qcom,src-sel = <2>;		/* QPNP_PIN_SEL_FUNC_1 */
-		qcom,master-en = <1>;	/* Enable GPIO */
+		qcom,master-en = <1>;
 	};
 
 	gpio@c500 { /* GPIO 6 */

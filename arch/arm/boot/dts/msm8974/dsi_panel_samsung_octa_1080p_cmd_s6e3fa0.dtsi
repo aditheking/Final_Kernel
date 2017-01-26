@@ -17,7 +17,7 @@
 		label = "samsung amoled 1080p command mode dsi S6E3FA0 panel";
 		status = "disable";
 		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
-        qcom,cont-splash-enabled = <1>;
+
 		qcom,enable-gpio = <&pm8941_gpios 14 0>;
 		qcom,rst-gpio = <&pm8941_gpios 19 0>;
 		qcom,te-gpio = <&msmgpio 12 0>;
@@ -105,16 +105,16 @@
 				29 01 00 00 00 00 03 FC 5A 5A /* Level3 key Enable */
 				29 01 00 00 00 00 03 ED 0C 04 /* ERR_FG */
 				23 01 00 00 00 00 02 FF 01	   /* Hsync On */
-				29 01 00 00 0A 00 03 FC A5 A5 /* Level3 key Disable */
+				29 01 00 00 00 00 03 FC A5 A5 /* Level3 key Disable */
 			];
-		qcom,on-cmds-dsi-state = "dsi_hs_mode";
+		qcom,on-cmds-dsi-state = "DSI_HS_MODE";
 		qcom,panel-off-cmds = [
 				05 01 00 00 0A 00 02 28 00
 				/* !! Needs 10ms(=0x0A) wait !!*/
 				05 01 00 00 78 00 02 10 00
 				/* !! Needs 120ms(=0x78) wait !!*/
 		];
-		qcom,off-cmds-dsi-state = "dsi_hs_mode";
+		qcom,off-cmds-dsi-state = "DSI_HS_MODE";
 
 		/*
 			the last byte in read commands  represent READ LENGH,
@@ -185,7 +185,6 @@
 						80 80 80 80 80 80 80 00
 						00 00
 					29 01 00 00 00 00 02 F7 03		/* Gamma, LTPS(AID) update */
-					29 01 00 00 00 00 02 F7 00		/* Gamma, LTPS(AID) update */
 				];
 
 			samsung,panel-gamma-hbm-cmds-list = [
@@ -203,7 +202,6 @@
 					29 01 00 00 00 00 07 B5 03 99 27 1F 45 0A		/* ACL control */
 					29 01 00 00 00 00 02 55 02	   					/* ACL 40%(02h) */
 					29 01 00 00 00 00 02 F7 03 						/* Gamma, LTPS(AID) update */
-					29 01 00 00 00 00 02 F7 00						/* Gamma, LTPS(AID) update */
 				];
 
 			samsung,panel-etc-hbm-evt0-second-cmds = [
@@ -213,7 +211,6 @@
 					29 01 00 00 00 00 03 BC 20 38					/* RE Condition Setting for EVT0 */
 					29 01 00 00 00 00 02 55 42	   					/* RE(low) & ACL 40% */
 					29 01 00 00 00 00 02 F7 03 						/* Gamma, LTPS(AID) update */
-					29 01 00 00 00 00 02 F7 00						/* Gamma, LTPS(AID) update */
 				];
 
 			samsung,panel-etc-hbm-evt1-cmds = [
@@ -222,7 +219,6 @@
 					29 01 00 00 00 00 12 B6 88 0A 00 00 00 00 00 03 55 54 20 00 06 66 6C 0C 00    /* HBM ELVSS Setting */
 					29 01 00 00 00 00 02 55 42	   					/* RE(low) & ACL 40% */
 					29 01 00 00 00 00 02 F7 03 						/* Gamma, LTPS(AID) update */
-					29 01 00 00 00 00 02 F7 00						/* Gamma, LTPS(AID) update */
 				];
 
 			samsung,panel-etc-hbm-evt1-second-cmds = [
@@ -231,7 +227,6 @@
 					29 01 00 00 00 00 07 B5 03 99 27 1F 45 0A		/* ACL control */
 					29 01 00 00 00 00 02 55 42	   					/* RE(low) & ACL */
 					29 01 00 00 00 00 02 F7 03 						/* Gamma, LTPS(AID) update */
-					29 01 00 00 00 00 02 F7 00						/* Gamma, LTPS(AID) update */
 				];
 
 			samsung,panel-etc-hbm-evt1-revI-cmds = [
@@ -240,7 +235,6 @@
 					29 01 00 00 00 00 07 B5 03 99 27 1F 45 0A		/* ACL control */
 					29 01 00 00 00 00 02 55 42	   					/* RE(low) & ACL */
 					29 01 00 00 00 00 02 F7 03 						/* Gamma, LTPS(AID) update */
-					29 01 00 00 00 00 02 F7 00						/* Gamma, LTPS(AID) update */
 				];
 
 			samsung,panel-etc-hbm-evt1-revJ-cmds = [

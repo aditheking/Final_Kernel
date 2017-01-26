@@ -162,8 +162,6 @@
 			interrupt-parent = <&msmgpio>;
 			interrupts = <64 0>;
 			bma255-i2c,i2c-pull-up = <1>;
-			bma255-i2c,scl = <&msmgpio 7 0>;
-			bma255-i2c,sda = <&msmgpio 6 0>;
 			bma255-i2c,vdd-supply = <&pm8226_l19>;
 			bma255-i2c,vdd-io-supply = <&pm8226_lvs1>;
 			bma255-i2c,acc_int1-gpio = <&msmgpio 64 0x1>;
@@ -360,7 +358,7 @@
 		battery,polling_type = <1>; /* SEC_BATTERY_MONITOR_ALARM */
 		battery,monitor_initial_count = <3>;
 
-		battery,battery_check_type = <1>; /*  SEC_BATTERY_CHECK_ADC */
+		battery,battery_check_type = <3>; /*  SEC_BATTERY_CHECK_PMIC */
 		battery,check_count = <0>;
 		battery,check_adc_max = <500000>; /* 500 mV */
 		battery,check_adc_min = <0>;   /* 0mV */
@@ -403,7 +401,7 @@
 		battery,recharge_check_count = <3>;
 		battery,recharge_condition_type = <4>; /* SEC_BATTERY_RECHARGE_CONDITION_VCELL */
 		battery,recharge_condition_soc = <98>;
-		battery,recharge_condition_vcell = <4320>;
+		battery,recharge_condition_vcell = <4300>;
 
 		battery,charging_total_time = <21600>;
 		battery,recharging_total_time = <5400>;
@@ -624,12 +622,12 @@
 			};
 		};
 
-		/*qcom,pm8226_rtc {
+		qcom,pm8226_rtc {
 			qcom,pm8226_bif@1200 {
 				reg = <0x1200 0x100>;
 				interrupts = <0x0 0x12 0x1>;
 			};
-		};*/
+		};
 	};
 
 	qcom,pm8226@1 {

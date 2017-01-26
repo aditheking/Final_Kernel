@@ -21,10 +21,10 @@
 		qcom,esd-det-gpio = <&msmgpio 16 0>;
 		qcom,lcd-crack-det-gpio = <&msmgpio 72 0>;
 		qcom,mdss-pan-res = <720 1280>;
-		qcom,mdss-pan-size = <56 99>; /* <Width> <Height> real size of panel in mm */
+		qcom,mdss-pan-size = <60 106>; /* <Width> <Height> real size of panel in mm */
 		qcom,mdss-pan-bpp = <24>;
 		qcom,mdss-pan-dest = "display_1";
-		qcom,mdss-pan-porch-values = <128 96 80 8 2 14>; /* <HBP> <HPW> <HFP> <VBP> <VPW> <VFP> */
+		qcom,mdss-pan-porch-values = <128 96 128 8 2 10>; /* <HBP> <HPW> <HFP> <VBP> <VPW> <VFP> */
 		qcom,mdss-pan-underflow-clr = <0xff>;
 		qcom,mdss-pan-bl-ctrl = "bl_ctrl_dcs_cmds";
 		qcom,mdss-pan-bl-levels = <1 255>;
@@ -48,7 +48,8 @@
 		qcom,cont-splash-enabled;
 		qcom,panel-phy-regulatorSettings = [07 09 03 00  /* Regualotor settings */
 						    20 00 01];
-		qcom,panel-phy-timingSettings = [36 23 14 00 42 46 18 30 26 03 04 00];
+		qcom,panel-phy-timingSettings = [2C 20 14 00 46 90
+						    1A 22 18 03 04 00];
 		qcom,panel-phy-strengthCtrl = [ff 06];		/*!!!! */
 		qcom,panel-phy-bistCtrl = [00 00 b1 ff           /*!!!! BIST Ctrl settings */
 					   00 00];
@@ -80,28 +81,24 @@
 						80 80 80 80 80 80 80 80
 						80 80 80 80 80 80 80 00
 						00 00
-					39 01 00 00 00 00 05 B2 00 06 00 08
-					39 01 00 00 00 00 03 B6 48 8A
+					39 01 00 00 00 00 05 B2 00 06 01 6D
+					39 01 00 00 00 00 03 B6 48 8E
 					39 01 00 00 00 00 02 55 00
 					39 01 00 00 00 00 02 F7 01
 					05 01 00 00 78 00 02 11 00
 					39 01 00 00 00 00 03 F1 A5 A5
-					39 01 00 00 00 00 03 F0 A5 A5
 					05 01 00 00 00 00 02 29 00];
-		qcom,on-cmds-dsi-state = "dsi_lp_mode";
+		qcom,on-cmds-dsi-state = "DSI_HS_MODE";
 		qcom,panel-off-cmds = [
-					05 01 00 00 23 00 02 28 00
-					05 01 00 00 64 00 02 10 00];
-		qcom,off-cmds-dsi-state = "dsi_hs_mode";
+					05 01 00 00 32 00 02 28 00
+					05 01 00 00 78 00 02 10 00];
+		qcom,off-cmds-dsi-state = "DSI_HS_MODE";
 
 			samsung,panel-nv-mtp-read-cmds = [ 06 01 00 00 00 00 01 c8 21 00];
-			samsung,panel-nv-mtp-read-hbm-cmds = [ 06 01 00 00 00 00 01 c8 07 21];	/* read C8 34~40th , 33=0x21*/
-			samsung,panel-nv-mtp-read-hbm2-cmds = [ 06 01 00 00 00 00 01 c8 0F 2B];	/* read C8 43~57th , 43=0x2B*/
-			samsung,panel-nv-mtp-read-hbm3-cmds = [ 06 01 00 00 00 00 01 b6 01 03];
+			samsung,panel-nv-mtp-read-hbm-cmds = [ 06 01 00 00 00 00 01 c8 06 21];	/* read C8 34~39th , 33=0x21*/
+			samsung,panel-nv-mtp-read-hbm2-cmds = [ 06 01 00 00 00 00 01 c8 0F 48];	/* read C8 73~87th , 72=0x48*/
 			samsung,panel-nv-mdnie-read-cmds = [ 06 01 00 00 00 00 01 A1 04 00];
 			samsung,panel-nv-read-cmds = [ 06 01 00 00 00 00 01 c8 21 00];
-			samsung,panel-test-key-enable-cmds = [ 39 01 00 00 00 00 03 F0 5A 5A];
-			samsung,panel-test-key-disable-cmds = [ 39 01 00 00 00 00 03 F0 A5 A5];
 			samsung,panel-nv-read-enable-cmds = [
 								39 01 00 00 00 00 03 f0 5a 5a
 								39 01 00 00 00 00 03 fc 5a 5a ];
@@ -113,10 +110,9 @@
 								06 01 00 00 00 00 01 db 01 00
 								06 01 00 00 00 00 01 dc 01 00];
 
-			samsung,panel-nv-mdate-read-cmds = [ 06 01 00 00 00 00 01 c8 02 28];	/* read C8 41~42th , 40=0x28*/
 			qcom,panel-display-on-cmds = [05 01 00 00 32 00 02 29 00];
 			qcom,panel-display-off-cmds = [05 01 00 00 32 00 02 28 00];
-
+							
 			qcom,panel-display-unblank-cmds = [39 01 00 00 32 00 02 13 00];			/*Normal mode command*/
 			qcom,panel-display-blank-cmds = [39 01 00 00 45 00 02 22 00];		 /* All pixel off - for making display black*/
 
@@ -137,24 +133,17 @@
 						80 80 80 80 80 80 80 80
 						80 80 80 80 80 80 80 00
 						00 00
+					39 01 00 00 00 00 02 F7 01 /* Gamma, LTPS(AID) update */
 				];
 			samsung,panel-etc-hbm-cmds = [
-					39 01 00 00 00 00 05 B2 00 06 00 08	/* samsung_brightness_aor_condition */
-					39 01 00 00 00 00 03 F1 5A 5A
-					39 01 00 00 00 00 03 B6 48 8A	/* ELVSS  */
-					39 01 00 00 00 00 02 B0 03		/* global para */
-					39 01 00 00 00 00 02 B6 00		/* C8h 40th - MPS / ELVSS setting */
-					39 01 00 00 00 00 02 55 02		/* power saving Set */
-					39 01 00 00 00 00 02 F7 01		/* Gamma, LTPS(AID) update */
-					39 01 00 00 00 00 03 F1 A5 A5
+					39 01 00 00 00 00 05 B2 00 06 00 10	/* samsung_brightness_aor_condition */
+					39 01 00 00 00 00 03 b6 48 8A 		/* ELVSS  */
+					39 01 00 00 00 00 04	B5 01 99 35		/* acl cont */
+					39 01 00 00 00 00 05	E3 FF FF FF FF		/* als cont */
+					39 01 00 00 00 00 02 55 41	   	/* power saving Set */
+					39 01 00 00 00 00 03	BC 20 38		/* psre cont */
 				];
-			samsung,panel-hbm-off-elvss-cmds = [
-					39 01 00 00 00 00 03 B6 48 8A	/* ELVSS  */
-					39 01 00 00 00 00 02 B0 03		/* global para */
-					39 01 00 00 00 00 02 B6 00		/* C8h 40th - MPS / ELVSS setting */
-				];
-			samsung,panel-elvss-cmds-tempcompen-list = [
-					39 01 00 00 00 00 02 B8 19];	/* Temperature Command */
+
 			/*
 			 * ************************************************************************************************************************
 			 * AID command list and mappings
@@ -301,6 +290,7 @@
 					39 01 00 00 00 00 03 b6 48 8B /* 13  316 ~ 333 nit : 0x8B */
 					39 01 00 00 00 00 03 b6 48 8A /* 14  350           nit : 0x8A */
 				];
+			samsung,panel-elvss-cmds-tempcompen-list = [39 01 00 00 00 00 08 B8 38 07 30 00 28 19 02];
 
 			/* bl_level, Index in elvss command list */
 			samsung,panel-elvss-map-table = <
@@ -481,8 +471,8 @@
 				60		207 	218 	282
 				61		219 	230 	300
 				62		231 	242 	316
-				63		243 	253 	333
-				64		254 	255 	350
+				63		243 	254 	333
+				64		255 	255 	350
 				>;
 
 samsung,panel-crack-rec-cmds-list = [
@@ -497,10 +487,7 @@ samsung,panel-crack-rec-cmds-list = [
 		compatible = "qcom,mdss-dsi-ctrl";
 		label = "MDSS DSI CTRL->0";
 		cell-index = <0>;
-		reg = 	<0xfd922800 0x1f8>,
-			<0xfd922b00 0x2b0>,
-			<0xfd828000 0x108>;
-		reg-names = "dsi_ctrl", "dsi_phy", "mmss_misc_phys";
+		reg = <0xfd922800 0x600>;
 		vddio-supply = <&pm8226_l8>;
 		vdda-supply = <&pm8226_l4>;
 		qcom,mdss-fb-map = <&mdss_fb0>;
@@ -509,7 +496,7 @@ samsung,panel-crack-rec-cmds-list = [
 		qcom,platform-strength-ctrl = [ff 06];
 		qcom,platform-bist-ctrl = [00 00 b1 ff			 /*!!!! BIST Ctrl settings */
 				   00 00];
-		qcom,platform-regulator-settings = [07 08 07 00 20 07 01];
+		qcom,platform-regulator-settings = [07 09 03 00 20 00 01];
 		qcom,platform-lane-config = [
 		00 00 00 00 00 00 00 01 97 /* lane0 config */
 		00 00 00 00 05 00 00 01 97 /* lane1 config */
@@ -534,7 +521,7 @@ samsung,panel-crack-rec-cmds-list = [
 			qcom,supply-enable-load = <100000>;
 			qcom,supply-disable-load = <100>;
 			qcom,supply-pre-on-sleep = <0>;
-			qcom,supply-post-on-sleep = <0>;
+			qcom,supply-post-on-sleep = <20>;
 			qcom,supply-pre-off-sleep = <0>;
 			qcom,supply-post-off-sleep = <0>;
 		};

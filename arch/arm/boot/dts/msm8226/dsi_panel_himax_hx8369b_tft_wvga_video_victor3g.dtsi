@@ -63,7 +63,7 @@
 		qcom,mdss-dsi-panel-clock-rate = <489000000>;		
                 qcom,mdss-dsi-panel-timings = [33 1E 14 00 44 48 18 22 19 03 04 00];
 		qcom,platform-strength-ctrl = [ff 06];
-		qcom,platform-regulator-settings = [07 08 07 00 20 07 01];
+		qcom,platform-regulator-settings = [07 09 03 00 20 00 01];
 		qcom,mdss-dsi-on-command = [39 01 00 00 01 00 04 B9 FF 83 69
 					39 01 00 00 0A 00 10 BA 31 00 16 CA B1 0A 00 10 28 02 21 21 9A 1A 8F
 					39 01 00 00 01 00 02 3A 70
@@ -107,10 +107,7 @@
 		compatible = "qcom,mdss-dsi-ctrl";
 		label = "MDSS DSI CTRL->0";
 		cell-index = <0>;
-		reg = 	<0xfd922800 0x1f8>,
-			<0xfd922b00 0x2b0>,
-			<0xfd828000 0x108>;
-		reg-names = "dsi_ctrl", "dsi_phy", "mmss_misc_phys";
+		reg = <0xfd922800 0x600>;
 		qcom,platform-reset-gpio = <&msmgpio 25 0>;
 		vdd-supply = <&pm8226_l15>;
 		vddio-supply = <&pm8226_l8>;

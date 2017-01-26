@@ -11,18 +11,6 @@
  * GNU General Public License for more details.
  */
 
-&spmi_bus {
-	qcom,pm8226@1 {
-		qcom,leds@d300 {
-			compatible = "qcom,leds-qpnp";
-			status = "okay";
-			reg = <0xd300 0x100>;
-			label = "flash";
-			flash-boost-supply = <&pm8226_chg_boost>;
-			};
-	};
-};
-
 &soc {
 	i2c@20 {
 		cell-index = <20>;

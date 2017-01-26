@@ -13,7 +13,7 @@
 /include/ "msm8226-camera-sensor-mtp-atlantic-rev01.dtsi"
 /include/ "dsi_panel_magna_octa_720p_video_kminilte_03.dtsi"
 
-/include/ "msm8928-kmini-w1.dtsi"
+/include/ "msm8928-w1.dtsi"
 &soc {
 	serial@f991f000 {
 		status = "ok";
@@ -226,10 +226,10 @@
 			interrupt-parent = <&msmgpio>;
 			interrupts = <65 0>;
 			cm36686,irq_gpio = <&msmgpio 65 0x1>;
-			cm36686,default_hi_thd = <14>;
-			cm36686,default_low_thd = <9>;
-			cm36686,cancel_hi_thd = <10>;
-			cm36686,cancel_low_thd = <5>;
+			cm36686,default_hi_thd = <34>;
+			cm36686,default_low_thd = <30>;
+			cm36686,cancel_hi_thd = <34>;
+			cm36686,cancel_low_thd = <30>;
 			reg_vdd-supply = <&pm8226_l19>;
 			reg_vio-supply = <&pm8226_lvs1>;
 			reg_leda-supply = <&pm8226_l23>;
@@ -483,45 +483,15 @@
 			battery,chg_gpio_status = <0>;
 			battery,chg_polarity_status = <0>;
 			battery,chg_float_voltage = <4390>;
-			battery,ovp_uvlo_check_type = <4>; /* SEC_BATTERY_OVP_UVLO_CHGINT */
-			battery,chg_int = <&msmgpio 54 0x1>;
-			battery,chg_irq_attr = <0x3>;
+			battery,ovp_uvlo_check_type = <3>; /* SEC_BATTERY_OVP_UVLO_CHGPOLLING */
 			battery,full_check_type = <7>; /* SEC_BATTERY_FULLCHARGED_CHGPSY */
 
-			battery,input_current_limit = <460 460 460 1000 460 900 1000 460 460 1000 650 1000 1000 460 1000 300 700 1000 300 1000 1000 460 460>;
-			battery,fast_charging_current = <460 0 460 1300 460 1300 1000 460 0 1200 750 1300 1300 0 1300 300 700 1300 300 1000 1300 0 0>;
+			battery,input_current_limit = <1000 460 460 1000 460 900 1000 460 460 1000 650 1000 1000 460 1000 300 700 1000 300 1000 1000 460 460>;
+			battery,fast_charging_current = <1300 0 460 1300 460 1300 1000 460 0 1200 750 1300 1300 0 1300 300 700 1300 300 1000 1300 0 0>;
 			battery,full_check_current_1st = <150 0 150 150 150 150 150 150 0 150 150 150 150 0 150 150 150 150 150 150 150 0 0>;
 			battery,full_check_current_2nd = <2400 0 2400 2400 2400 2400 2400 2400 0 2400 2400 2400 2400 0 2400 2400 2400 2400 2400 2400 2400 0 0>;
 		};
 	};
-
-	memory_hole: qcom,msm-mem-hole {
-		compatible = "qcom,msm-mem-hole";
-		qcom,memblock-remove = <0x08000000 0x5900000
-				0x0dc00000 0x1d00000  /* Address and size of the hole */
-				0x0fa00000 0x500000
-				0x10600000 0x600000   /* 6MB for TIMA */
-				0x3f400000 0x800000>; /* Reserve 8MB for TZ apps */
-	};
-
-	qcom,qseecom@d980000 {
-		compatible = "qcom,qseecom";
-		reg = <0x3f400000 0x800000>;
-		reg-names = "secapp-region";
-		qcom,disk-encrypt-pipe-pair = <2>;
-		qcom,hlos-ce-hw-instance = <0>;
-		qcom,qsee-ce-hw-instance = <0>;
-		qcom,msm-bus,name = "qseecom-noc";
-		qcom,msm-bus,num-cases = <4>;
-		/* qcom,msm-bus,active-only = <0>; */
-		qcom,msm-bus,num-paths = <1>;
-		qcom,msm-bus,vectors-KBps =
-				<55 512 0 0>,
-				<55 512 3936000 393600>,
-				<55 512 3936000 393600>,
-				<55 512 3936000 393600>;
-	};
-
 };
 
 &usb_otg {
@@ -535,7 +505,7 @@
 			2 &spmi_bus 0x0 0x0 0x9 0x0>;
 	interrupt-names = "core_irq", "async_irq", "pmic_id_irq";
 
-	qcom,hsusb-otg-mode = <1>;
+	qcom,hsusb-otg-mode = <3>;
 	vbus_otg-supply = <&pm8226_chg_otg>;
 	qcom,hsusb-otg-phy-init-seq =
 			<0x44 0x80 0x6F 0x81 0x24 0x82 0x13 0x83 0xffffffff>;
@@ -737,7 +707,7 @@
 		qcom,output-type = <0>;	/* CMOS logic */
 		qcom,pull = <5>;		/* QPNP_PIN_PULL_NO*/
 		qcom,vin-sel = <3>;		/* QPNP_PIN_VIN3 */
-		qcom,out-strength = <1>;/* QPNP_PIN_OUT_STRENGTH_LOW */
+		qcom,out-strength = <3>;/* QPNP_PIN_OUT_STRENGTH_HIGH */
 		qcom,src-sel = <2>;		/* QPNP_PIN_SEL_FUNC_1 */
 		qcom,master-en = <1>;	/* Enable GPIO */
 	};
@@ -774,15 +744,11 @@
 	};
 
 	gpio@c500 { /* GPIO 6 */
-		reg = <0xc500 0x100>;
-		qcom,pin-num = <6>;
-		qcom,mode = <1>; /* QPNP_PIN_MODE_DIG_OUT */
-		qcom,output-type = <0>; /* QPNP_PIN_OUT_BUF_CMOS */
-		qcom,invert = <0>; /* QPNP_PIN_INVERT_DISABLE */
-		qcom,pull = <5>; /* QPNP_PIN_PULL_NO */
-		qcom,vin-sel = <3>; /* QPNP_PIN_VIN3 L6 (1.8 V) */
-		qcom,out-strength = <3>; /* QPNP_PIN_OUT_STRENGTH_HIGH */
-		qcom,src-sel = <0>; /* QPNP_PIN_SEL_FUNC_CONSTANT */
+		qcom,mode = <1>;                /* Digital output */
+                qcom,output-type = <0>; /* CMOS logic */
+                qcom,pull = <5>;                /* QPNP_PIN_PULL_NO */
+                qcom,vin-sel = <3>;             /* QPNP_PIN_VIN2 */
+                qcom,out-strength = <3>;/* QPNP_PIN_OUT_STRENGTH_HIGH */
 		qcom,master-en = <1>;
 	};
 

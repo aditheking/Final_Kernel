@@ -6,7 +6,7 @@
 BUILD_TOP_DIR=..
 BUILD_KERNEL_DIR=$(pwd)
 
-BUILD_CROSS_COMPILE=~/working/kernel/arm-eabi-4.9/bin/arm-eabi-
+BUILD_CROSS_COMPILE=$(pwd)/arm-eabi-4.9/bin/arm-eabi-
 BUILD_JOB_NUMBER=`grep processor /proc/cpuinfo|wc -l`
 
 KERNEL_DEFCONFIG=msm8226-sec_defconfig

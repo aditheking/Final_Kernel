@@ -1007,7 +1007,6 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct dentry *lower_new_dir_dentry;
 	struct dentry *trap = NULL;
 	struct inode *target_inode;
-<<<<<<< HEAD
 #ifdef CONFIG_DLP
 	sdp_fs_command_t *cmd1 = NULL;
 	unsigned long old_inode = old_dentry->d_inode->i_ino;
@@ -1078,8 +1077,6 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			IS_SENSITIVE_DENTRY(new_dentry->d_parent))
 		rename_event |= ECRYPTFS_EVT_RENAME_TO_CHAMBER;
 #endif
-=======
->>>>>>> e8041aa... Linux 3.4.12
 
 	lower_old_dentry = ecryptfs_dentry_to_lower(old_dentry);
 	lower_new_dentry = ecryptfs_dentry_to_lower(new_dentry);

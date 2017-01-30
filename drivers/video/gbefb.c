@@ -20,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/io.h>
 
 #ifdef CONFIG_X86
 #include <asm/mtrr.h>
@@ -29,6 +28,7 @@
 #include <asm/addrspace.h>
 #endif
 #include <asm/byteorder.h>
+#include <asm/io.h>
 #include <asm/tlbflush.h>
 
 #include <video/gbe.h>
@@ -91,10 +91,10 @@ static uint32_t pseudo_palette[16];
 static uint32_t gbe_cmap[256];
 static int gbe_turned_on; /* 0 turned off, 1 turned on */
 
-static char *mode_option = NULL;
+static char *mode_option __devinitdata = NULL;
 
 /* default CRT mode */
-static struct fb_var_screeninfo default_var_CRT = {
+static struct fb_var_screeninfo default_var_CRT __devinitdata = {
 	/* 640x480, 60 Hz, Non-Interlaced (25.175 MHz dotclock) */
 	.xres		= 640,
 	.yres		= 480,
@@ -125,7 +125,7 @@ static struct fb_var_screeninfo default_var_CRT = {
 };
 
 /* default LCD mode */
-static struct fb_var_screeninfo default_var_LCD = {
+static struct fb_var_screeninfo default_var_LCD __devinitdata = {
 	/* 1600x1024, 8 bpp */
 	.xres		= 1600,
 	.yres		= 1024,
@@ -157,7 +157,7 @@ static struct fb_var_screeninfo default_var_LCD = {
 
 /* default modedb mode */
 /* 640x480, 60 Hz, Non-Interlaced (25.172 MHz dotclock) */
-static struct fb_videomode default_mode_CRT = {
+static struct fb_videomode default_mode_CRT __devinitdata = {
 	.refresh	= 60,
 	.xres		= 640,
 	.yres		= 480,
@@ -172,7 +172,7 @@ static struct fb_videomode default_mode_CRT = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 /* 1600x1024 SGI flatpanel 1600sw */
-static struct fb_videomode default_mode_LCD = {
+static struct fb_videomode default_mode_LCD __devinitdata = {
 	/* 1600x1024, 8 bpp */
 	.xres		= 1600,
 	.yres		= 1024,
@@ -186,8 +186,8 @@ static struct fb_videomode default_mode_LCD = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-static struct fb_videomode *default_mode = &default_mode_CRT;
-static struct fb_var_screeninfo *default_var = &default_var_CRT;
+static struct fb_videomode *default_mode __devinitdata = &default_mode_CRT;
+static struct fb_var_screeninfo *default_var __devinitdata = &default_var_CRT;
 
 static int flat_panel_enabled = 0;
 
@@ -1016,9 +1016,7 @@ static int gbefb_mmap(struct fb_info *info,
 	/* check range */
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
-	if (size > gbe_mem_size)
-		return -EINVAL;
-	if (offset > gbe_mem_size - size)
+	if (offset + size > gbe_mem_size)
 		return -EINVAL;
 
 	/* remap using the fastest write-through mode on architecture */
@@ -1026,7 +1024,7 @@ static int gbefb_mmap(struct fb_info *info,
 	pgprot_val(vma->vm_page_prot) =
 		pgprot_fb(pgprot_val(vma->vm_page_prot));
 
-	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
+	vma->vm_flags |= VM_IO | VM_RESERVED;
 
 	/* look for the starting tile */
 	tile = &gbe_tiles.cpu[offset >> TILE_SHIFT];
@@ -1084,7 +1082,7 @@ static ssize_t gbefb_show_rev(struct device *device, struct device_attribute *at
 
 static DEVICE_ATTR(revision, S_IRUGO, gbefb_show_rev, NULL);
 
-static void gbefb_remove_sysfs(struct device *dev)
+static void __devexit gbefb_remove_sysfs(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_size);
 	device_remove_file(dev, &dev_attr_revision);
@@ -1100,7 +1098,7 @@ static void gbefb_create_sysfs(struct device *dev)
  * Initialization
  */
 
-static int gbefb_setup(char *options)
+static int __devinit gbefb_setup(char *options)
 {
 	char *this_opt;
 
@@ -1131,7 +1129,7 @@ static int gbefb_setup(char *options)
 	return 0;
 }
 
-static int gbefb_probe(struct platform_device *p_dev)
+static int __devinit gbefb_probe(struct platform_device *p_dev)
 {
 	int i, ret = 0;
 	struct fb_info *info;
@@ -1158,8 +1156,7 @@ static int gbefb_probe(struct platform_device *p_dev)
 		goto out_release_framebuffer;
 	}
 
-	gbe = (struct sgi_gbe *) devm_ioremap(&p_dev->dev, GBE_BASE,
-					      sizeof(struct sgi_gbe));
+	gbe = (struct sgi_gbe *) ioremap(GBE_BASE, sizeof(struct sgi_gbe));
 	if (!gbe) {
 		printk(KERN_ERR "gbefb: couldn't map mmio region\n");
 		ret = -ENXIO;
@@ -1173,13 +1170,12 @@ static int gbefb_probe(struct platform_device *p_dev)
 	if (!gbe_tiles.cpu) {
 		printk(KERN_ERR "gbefb: couldn't allocate tiles table\n");
 		ret = -ENOMEM;
-		goto out_release_mem_region;
+		goto out_unmap;
 	}
 
 	if (gbe_mem_phys) {
 		/* memory was allocated at boot time */
-		gbe_mem = devm_ioremap_nocache(&p_dev->dev, gbe_mem_phys,
-					       gbe_mem_size);
+		gbe_mem = ioremap_nocache(gbe_mem_phys, gbe_mem_size);
 		if (!gbe_mem) {
 			printk(KERN_ERR "gbefb: couldn't map framebuffer\n");
 			ret = -ENOMEM;
@@ -1245,9 +1241,13 @@ static int gbefb_probe(struct platform_device *p_dev)
 out_gbe_unmap:
 	if (gbe_dma_addr)
 		dma_free_coherent(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
+	else
+		iounmap(gbe_mem);
 out_tiles_free:
 	dma_free_coherent(NULL, GBE_TLB_SIZE * sizeof(uint16_t),
 			  (void *)gbe_tiles.cpu, gbe_tiles.dma);
+out_unmap:
+	iounmap(gbe);
 out_release_mem_region:
 	release_mem_region(GBE_BASE, sizeof(struct sgi_gbe));
 out_release_framebuffer:
@@ -1256,7 +1256,7 @@ out_release_framebuffer:
 	return ret;
 }
 
-static int gbefb_remove(struct platform_device* p_dev)
+static int __devexit gbefb_remove(struct platform_device* p_dev)
 {
 	struct fb_info *info = platform_get_drvdata(p_dev);
 
@@ -1264,9 +1264,12 @@ static int gbefb_remove(struct platform_device* p_dev)
 	gbe_turn_off();
 	if (gbe_dma_addr)
 		dma_free_coherent(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
+	else
+		iounmap(gbe_mem);
 	dma_free_coherent(NULL, GBE_TLB_SIZE * sizeof(uint16_t),
 			  (void *)gbe_tiles.cpu, gbe_tiles.dma);
 	release_mem_region(GBE_BASE, sizeof(struct sgi_gbe));
+	iounmap(gbe);
 	gbefb_remove_sysfs(&p_dev->dev);
 	framebuffer_release(info);
 
@@ -1275,7 +1278,7 @@ static int gbefb_remove(struct platform_device* p_dev)
 
 static struct platform_driver gbefb_driver = {
 	.probe = gbefb_probe,
-	.remove = gbefb_remove,
+	.remove = __devexit_p(gbefb_remove),
 	.driver	= {
 		.name = "gbefb",
 	},

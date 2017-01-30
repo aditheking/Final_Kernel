@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -12,7 +12,7 @@
 
 #ifndef __HDMI_UTIL_H__
 #define __HDMI_UTIL_H__
-#include <linux/mdss_io_util.h>
+#include "mdss_io_util.h"
 #include "video/msm_hdmi_modes.h"
 
 /* HDMI_TX Registers */
@@ -78,7 +78,6 @@
 #define HDMI_RAMP_CTRL2                  (0x00000100)
 #define HDMI_RAMP_CTRL3                  (0x00000104)
 #define HDMI_CS_60958_2                  (0x00000108)
-#define HDMI_HDCP_CTRL2                  (0x0000010C)
 #define HDMI_HDCP_CTRL                   (0x00000110)
 #define HDMI_HDCP_DEBUG_CTRL             (0x00000114)
 #define HDMI_HDCP_INT_CTRL               (0x00000118)
@@ -229,9 +228,6 @@
 #define FRAME_PACKING		0x20
 #define SIDE_BY_SIDE_HALF	0x40
 
-#define LPASS_LPAIF_RDDMA_CTL0           (0xFE152000)
-#define LPASS_LPAIF_RDDMA_PER_CNT0       (0x00000014)
-
 enum hdmi_tx_feature_type {
 	HDMI_TX_FEAT_EDID,
 	HDMI_TX_FEAT_HDCP,
@@ -261,7 +257,9 @@ int hdmi_get_video_id_code(struct msm_hdmi_mode_timing_info *timing_in);
 const struct msm_hdmi_mode_timing_info *hdmi_get_supported_mode(u32 mode);
 void hdmi_del_supported_mode(u32 mode);
 ssize_t hdmi_get_video_3d_fmt_2string(u32 format, char *buf, u32 size);
-
+#if defined (CONFIG_VIDEO_MHL_V2) || defined (CONFIG_VIDEO_MHL_SII8246)
+const struct msm_hdmi_mode_timing_info *hdmi_mhl_get_supported_mode(u32 mode);
+#endif
 /* todo: Fix this. Right now this is defined in mdss_hdmi_tx.c */
 void *hdmi_get_featuredata_from_sysfs_dev(struct device *device, u32 type);
 

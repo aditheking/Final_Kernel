@@ -235,7 +235,7 @@ static int adp8870_led_setup(struct adp8870_led *led)
 	return ret;
 }
 
-static int adp8870_led_probe(struct i2c_client *client)
+static int __devinit adp8870_led_probe(struct i2c_client *client)
 {
 	struct adp8870_backlight_platform_data *pdata =
 		client->dev.platform_data;
@@ -244,8 +244,8 @@ static int adp8870_led_probe(struct i2c_client *client)
 	struct led_info *cur_led;
 	int ret, i;
 
-	led = devm_kzalloc(&client->dev, pdata->num_leds * sizeof(*led),
-				GFP_KERNEL);
+
+	led = kcalloc(pdata->num_leds, sizeof(*led), GFP_KERNEL);
 	if (led == NULL) {
 		dev_err(&client->dev, "failed to alloc memory\n");
 		return -ENOMEM;
@@ -253,17 +253,17 @@ static int adp8870_led_probe(struct i2c_client *client)
 
 	ret = adp8870_write(client, ADP8870_ISCLAW, pdata->led_fade_law);
 	if (ret)
-		return ret;
+		goto err_free;
 
 	ret = adp8870_write(client, ADP8870_ISCT1,
 			(pdata->led_on_time & 0x3) << 6);
 	if (ret)
-		return ret;
+		goto err_free;
 
 	ret = adp8870_write(client, ADP8870_ISCF,
 			FADE_VAL(pdata->led_fade_in, pdata->led_fade_out));
 	if (ret)
-		return ret;
+		goto err_free;
 
 	for (i = 0; i < pdata->num_leds; ++i) {
 		cur_led = &pdata->leds[i];
@@ -274,14 +274,12 @@ static int adp8870_led_probe(struct i2c_client *client)
 		if (led_dat->id > 7 || led_dat->id < 1) {
 			dev_err(&client->dev, "Invalid LED ID %d\n",
 				led_dat->id);
-			ret = -EINVAL;
 			goto err;
 		}
 
 		if (pdata->bl_led_assign & (1 << (led_dat->id - 1))) {
 			dev_err(&client->dev, "LED %d used by Backlight\n",
 				led_dat->id);
-			ret = -EBUSY;
 			goto err;
 		}
 
@@ -319,10 +317,13 @@ static int adp8870_led_probe(struct i2c_client *client)
 		cancel_work_sync(&led[i].work);
 	}
 
+ err_free:
+	kfree(led);
+
 	return ret;
 }
 
-static int adp8870_led_remove(struct i2c_client *client)
+static int __devexit adp8870_led_remove(struct i2c_client *client)
 {
 	struct adp8870_backlight_platform_data *pdata =
 		client->dev.platform_data;
@@ -334,15 +335,16 @@ static int adp8870_led_remove(struct i2c_client *client)
 		cancel_work_sync(&data->led[i].work);
 	}
 
+	kfree(data->led);
 	return 0;
 }
 #else
-static int adp8870_led_probe(struct i2c_client *client)
+static int __devinit adp8870_led_probe(struct i2c_client *client)
 {
 	return 0;
 }
 
-static int adp8870_led_remove(struct i2c_client *client)
+static int __devexit adp8870_led_remove(struct i2c_client *client)
 {
 	return 0;
 }
@@ -570,7 +572,7 @@ static ssize_t adp8870_store(struct device *dev, const char *buf,
 	unsigned long val;
 	int ret;
 
-	ret = kstrtoul(buf, 10, &val);
+	ret = strict_strtoul(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -650,7 +652,7 @@ static ssize_t adp8870_bl_l1_daylight_max_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct adp8870_bl *data = dev_get_drvdata(dev);
-	int ret = kstrtoul(buf, 10, &data->cached_daylight_max);
+	int ret = strict_strtoul(buf, 10, &data->cached_daylight_max);
 	if (ret)
 		return ret;
 
@@ -792,7 +794,7 @@ static ssize_t adp8870_bl_ambient_light_zone_store(struct device *dev,
 	uint8_t reg_val;
 	int ret;
 
-	ret = kstrtoul(buf, 10, &val);
+	ret = strict_strtoul(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -841,7 +843,7 @@ static const struct attribute_group adp8870_bl_attr_group = {
 	.attrs = adp8870_bl_attributes,
 };
 
-static int adp8870_probe(struct i2c_client *client,
+static int __devinit adp8870_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct backlight_properties props;
@@ -872,7 +874,7 @@ static int adp8870_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -892,18 +894,19 @@ static int adp8870_probe(struct i2c_client *client,
 			&client->dev, data, &adp8870_bl_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&client->dev, "failed to register backlight\n");
-		return PTR_ERR(bl);
+		ret = PTR_ERR(bl);
+		goto out2;
 	}
 
 	data->bl = bl;
 
-	if (pdata->en_ambl_sens) {
+	if (pdata->en_ambl_sens)
 		ret = sysfs_create_group(&bl->dev.kobj,
 			&adp8870_bl_attr_group);
-		if (ret) {
-			dev_err(&client->dev, "failed to register sysfs\n");
-			goto out1;
-		}
+
+	if (ret) {
+		dev_err(&client->dev, "failed to register sysfs\n");
+		goto out1;
 	}
 
 	ret = adp8870_bl_setup(bl);
@@ -927,11 +930,13 @@ out:
 			&adp8870_bl_attr_group);
 out1:
 	backlight_device_unregister(bl);
+out2:
+	kfree(data);
 
 	return ret;
 }
 
-static int adp8870_remove(struct i2c_client *client)
+static int __devexit adp8870_remove(struct i2c_client *client)
 {
 	struct adp8870_bl *data = i2c_get_clientdata(client);
 
@@ -945,32 +950,29 @@ static int adp8870_remove(struct i2c_client *client)
 			&adp8870_bl_attr_group);
 
 	backlight_device_unregister(data->bl);
+	kfree(data);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int adp8870_i2c_suspend(struct device *dev)
+#ifdef CONFIG_PM
+static int adp8870_i2c_suspend(struct i2c_client *client, pm_message_t message)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-
 	adp8870_clr_bits(client, ADP8870_MDCR, NSTBY);
 
 	return 0;
 }
 
-static int adp8870_i2c_resume(struct device *dev)
+static int adp8870_i2c_resume(struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-
-	adp8870_set_bits(client, ADP8870_MDCR, NSTBY | BLEN);
+	adp8870_set_bits(client, ADP8870_MDCR, NSTBY);
 
 	return 0;
 }
+#else
+#define adp8870_i2c_suspend NULL
+#define adp8870_i2c_resume NULL
 #endif
-
-static SIMPLE_DEV_PM_OPS(adp8870_i2c_pm_ops, adp8870_i2c_suspend,
-			adp8870_i2c_resume);
 
 static const struct i2c_device_id adp8870_id[] = {
 	{ "adp8870", 0 },
@@ -980,11 +982,12 @@ MODULE_DEVICE_TABLE(i2c, adp8870_id);
 
 static struct i2c_driver adp8870_driver = {
 	.driver = {
-		.name	= KBUILD_MODNAME,
-		.pm	= &adp8870_i2c_pm_ops,
+		.name = KBUILD_MODNAME,
 	},
 	.probe    = adp8870_probe,
-	.remove   = adp8870_remove,
+	.remove   = __devexit_p(adp8870_remove),
+	.suspend = adp8870_i2c_suspend,
+	.resume  = adp8870_i2c_resume,
 	.id_table = adp8870_id,
 };
 

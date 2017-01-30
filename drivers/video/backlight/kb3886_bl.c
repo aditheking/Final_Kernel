@@ -34,9 +34,9 @@ static void kb3886_bl_set_intensity(int intensity)
 	mutex_lock(&bl_mutex);
 	intensity = intensity&0xff;
 	outb(KB3886_ADC_DAC_PWM, KB3886_PARENT);
-	usleep_range(10000, 11000);
+	msleep(10);
 	outb(KB3886_PWM0_WRITE, KB3886_IO);
-	usleep_range(10000, 11000);
+	msleep(10);
 	outb(intensity, KB3886_IO);
 	mutex_unlock(&bl_mutex);
 }
@@ -106,27 +106,28 @@ static int kb3886bl_send_intensity(struct backlight_device *bd)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int kb3886bl_suspend(struct device *dev)
+#ifdef CONFIG_PM
+static int kb3886bl_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct backlight_device *bd = dev_get_drvdata(dev);
+	struct backlight_device *bd = platform_get_drvdata(pdev);
 
 	kb3886bl_flags |= KB3886BL_SUSPENDED;
 	backlight_update_status(bd);
 	return 0;
 }
 
-static int kb3886bl_resume(struct device *dev)
+static int kb3886bl_resume(struct platform_device *pdev)
 {
-	struct backlight_device *bd = dev_get_drvdata(dev);
+	struct backlight_device *bd = platform_get_drvdata(pdev);
 
 	kb3886bl_flags &= ~KB3886BL_SUSPENDED;
 	backlight_update_status(bd);
 	return 0;
 }
+#else
+#define kb3886bl_suspend	NULL
+#define kb3886bl_resume		NULL
 #endif
-
-static SIMPLE_DEV_PM_OPS(kb3886bl_pm_ops, kb3886bl_suspend, kb3886bl_resume);
 
 static int kb3886bl_get_intensity(struct backlight_device *bd)
 {
@@ -178,9 +179,10 @@ static int kb3886bl_remove(struct platform_device *pdev)
 static struct platform_driver kb3886bl_driver = {
 	.probe		= kb3886bl_probe,
 	.remove		= kb3886bl_remove,
+	.suspend	= kb3886bl_suspend,
+	.resume		= kb3886bl_resume,
 	.driver		= {
 		.name	= "kb3886-bl",
-		.pm	= &kb3886bl_pm_ops,
 	},
 };
 

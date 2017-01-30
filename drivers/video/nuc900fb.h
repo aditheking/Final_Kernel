@@ -16,7 +16,7 @@
 #define __NUC900FB_H
 
 #include <mach/map.h>
-#include <linux/platform_data/video-nuc900fb.h>
+#include <mach/fb.h>
 
 enum nuc900_lcddrv_type {
 	LCDDRV_NUC910,

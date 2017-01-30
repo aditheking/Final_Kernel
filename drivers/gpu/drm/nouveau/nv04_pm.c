@@ -22,15 +22,10 @@
  * Authors: Ben Skeggs
  */
 
-#include <drm/drmP.h>
-#include "nouveau_drm.h"
-#include "nouveau_reg.h"
-#include "dispnv04/hw.h"
+#include "drmP.h"
+#include "nouveau_drv.h"
+#include "nouveau_hw.h"
 #include "nouveau_pm.h"
-
-#include <subdev/bios/pll.h>
-#include <subdev/clock.h>
-#include <subdev/timer.h>
 
 int
 nv04_pm_clocks_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
@@ -51,7 +46,7 @@ nv04_pm_clocks_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 }
 
 struct nv04_pm_clock {
-	struct nvbios_pll pll;
+	struct pll_lims pll;
 	struct nouveau_pll_vals calc;
 };
 
@@ -63,16 +58,13 @@ struct nv04_pm_state {
 static int
 calc_pll(struct drm_device *dev, u32 id, int khz, struct nv04_pm_clock *clk)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_bios *bios = nouveau_bios(device);
-	struct nouveau_clock *pclk = nouveau_clock(device);
 	int ret;
 
-	ret = nvbios_pll_parse(bios, id, &clk->pll);
+	ret = get_pll_limits(dev, id, &clk->pll);
 	if (ret)
 		return ret;
 
-	ret = pclk->pll_calc(pclk, &clk->pll, khz, &clk->calc);
+	ret = nouveau_calc_pll_mnp(dev, &clk->pll, khz, &clk->calc);
 	if (!ret)
 		return -EINVAL;
 
@@ -108,38 +100,37 @@ error:
 static void
 prog_pll(struct drm_device *dev, struct nv04_pm_clock *clk)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_clock *pclk = nouveau_clock(device);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	u32 reg = clk->pll.reg;
 
 	/* thank the insane nouveau_hw_setpll() interface for this */
-	if (device->card_type >= NV_40)
+	if (dev_priv->card_type >= NV_40)
 		reg += 4;
 
-	pclk->pll_prog(pclk, reg, &clk->calc);
+	nouveau_hw_setpll(dev, reg, &clk->calc);
 }
 
 int
 nv04_pm_clocks_set(struct drm_device *dev, void *pre_state)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_timer *ptimer = nouveau_timer(device);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
 	struct nv04_pm_state *state = pre_state;
 
 	prog_pll(dev, &state->core);
 
 	if (state->memory.pll.reg) {
 		prog_pll(dev, &state->memory);
-		if (device->card_type < NV_30) {
-			if (device->card_type == NV_20)
-				nv_mask(device, 0x1002c4, 0, 1 << 20);
+		if (dev_priv->card_type < NV_30) {
+			if (dev_priv->card_type == NV_20)
+				nv_mask(dev, 0x1002c4, 0, 1 << 20);
 
 			/* Reset the DLLs */
-			nv_mask(device, 0x1002c0, 0, 1 << 8);
+			nv_mask(dev, 0x1002c0, 0, 1 << 8);
 		}
 	}
 
-	nv_ofuncs(ptimer)->init(nv_object(ptimer));
+	ptimer->init(dev);
 
 	kfree(state);
 	return 0;

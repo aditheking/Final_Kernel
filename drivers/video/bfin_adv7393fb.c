@@ -58,7 +58,7 @@ static const unsigned short ppi_pins[] = {
  */
 
 static struct bfin_adv7393_fb_par {
-	/* structure holding blackfin / adv7393 parameters when
+	/* structure holding blackfin / adv7393 paramters when
 	   screen is blanked */
 	struct {
 		u8 Mode;	/* ntsc/pal/? */
@@ -88,7 +88,7 @@ static struct fb_var_screeninfo bfin_adv7393_fb_defined = {
 	.transp = {0, 0, 0},
 };
 
-static struct fb_fix_screeninfo bfin_adv7393_fb_fix = {
+static struct fb_fix_screeninfo bfin_adv7393_fb_fix __devinitdata = {
 	.id = "BFIN ADV7393",
 	.smem_len = 720 * 480 * 2,
 	.type = FB_TYPE_PACKED_PIXELS,
@@ -333,43 +333,45 @@ static int proc_output(char *buf)
 	return p - buf;
 }
 
-static ssize_t
-adv7393_read_proc(struct file *file, char __user *buf,
-		  size_t size, loff_t *ppos)
+static int
+adv7393_read_proc(char *page, char **start, off_t off,
+		  int count, int *eof, void *data)
 {
-	static const char message[] = "Usage:\n"
-		"echo 0x[REG][Value] > adv7393\n"
-		"example: echo 0x1234 >adv7393\n"
-		"writes 0x34 into Register 0x12\n";
-	return simple_read_from_buffer(buf, size, ppos, message,
-					sizeof(message));
+	int len;
+
+	len = proc_output(page);
+	if (len <= off + count)
+		*eof = 1;
+	*start = page + off;
+	len -= off;
+	if (len > count)
+		len = count;
+	if (len < 0)
+		len = 0;
+	return len;
 }
 
-static ssize_t
+static int
 adv7393_write_proc(struct file *file, const char __user * buffer,
-		   size_t count, loff_t *ppos)
+		   unsigned long count, void *data)
 {
-	struct adv7393fb_device *fbdev = PDE_DATA(file_inode(file));
+	struct adv7393fb_device *fbdev = data;
+	char line[8];
 	unsigned int val;
 	int ret;
 
-	ret = kstrtouint_from_user(buffer, count, 0, &val);
+	ret = copy_from_user(line, buffer, count);
 	if (ret)
 		return -EFAULT;
 
+	val = simple_strtoul(line, NULL, 0);
 	adv7393_write(fbdev->client, val >> 8, val & 0xff);
 
 	return count;
 }
 
-static const struct file_operations fops = {
-	.read = adv7393_read_proc,
-	.write = adv7393_write_proc,
-	.llseek = default_llseek,
-};
-
-static int bfin_adv7393_fb_probe(struct i2c_client *client,
-				 const struct i2c_device_id *id)
+static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
+					   const struct i2c_device_id *id)
 {
 	int ret = 0;
 	struct proc_dir_entry *entry;
@@ -412,14 +414,14 @@ static int bfin_adv7393_fb_probe(struct i2c_client *client,
 		if (ret) {
 			dev_err(&client->dev, "PPI0_FS3 GPIO request failed\n");
 			ret = -EBUSY;
-			goto free_fbdev;
+			goto out_8;
 		}
 	}
 
 	if (peripheral_request_list(ppi_pins, DRIVER_NAME)) {
 		dev_err(&client->dev, "requesting PPI peripheral failed\n");
 		ret = -EFAULT;
-		goto free_gpio;
+		goto out_8;
 	}
 
 	fbdev->fb_mem =
@@ -430,7 +432,7 @@ static int bfin_adv7393_fb_probe(struct i2c_client *client,
 		dev_err(&client->dev, "couldn't allocate dma buffer (%d bytes)\n",
 		       (u32) fbdev->fb_len);
 		ret = -ENOMEM;
-		goto free_ppi_pins;
+		goto out_7;
 	}
 
 	fbdev->info.screen_base = (void *)fbdev->fb_mem;
@@ -462,27 +464,27 @@ static int bfin_adv7393_fb_probe(struct i2c_client *client,
 	if (!fbdev->info.pseudo_palette) {
 		dev_err(&client->dev, "failed to allocate pseudo_palette\n");
 		ret = -ENOMEM;
-		goto free_fb_mem;
+		goto out_6;
 	}
 
 	if (fb_alloc_cmap(&fbdev->info.cmap, BFIN_LCD_NBR_PALETTE_ENTRIES, 0) < 0) {
 		dev_err(&client->dev, "failed to allocate colormap (%d entries)\n",
 			   BFIN_LCD_NBR_PALETTE_ENTRIES);
 		ret = -EFAULT;
-		goto free_palette;
+		goto out_5;
 	}
 
 	if (request_dma(CH_PPI, "BF5xx_PPI_DMA") < 0) {
 		dev_err(&client->dev, "unable to request PPI DMA\n");
 		ret = -EFAULT;
-		goto free_cmap;
+		goto out_4;
 	}
 
 	if (request_irq(IRQ_PPI_ERROR, ppi_irq_error, 0,
 			"PPI ERROR", fbdev) < 0) {
 		dev_err(&client->dev, "unable to request PPI ERROR IRQ\n");
 		ret = -EFAULT;
-		goto free_ch_ppi;
+		goto out_3;
 	}
 
 	fbdev->open = 0;
@@ -492,47 +494,49 @@ static int bfin_adv7393_fb_probe(struct i2c_client *client,
 
 	if (ret) {
 		dev_err(&client->dev, "i2c attach: init error\n");
-		goto free_irq_ppi;
+		goto out_1;
 	}
 
 
 	if (register_framebuffer(&fbdev->info) < 0) {
 		dev_err(&client->dev, "unable to register framebuffer\n");
 		ret = -EFAULT;
-		goto free_irq_ppi;
+		goto out_1;
 	}
 
 	dev_info(&client->dev, "fb%d: %s frame buffer device\n",
 	       fbdev->info.node, fbdev->info.fix.id);
 	dev_info(&client->dev, "fb memory address : 0x%p\n", fbdev->fb_mem);
 
-	entry = proc_create_data("driver/adv7393", 0, NULL, &fops, fbdev);
+	entry = create_proc_entry("driver/adv7393", 0, NULL);
 	if (!entry) {
 		dev_err(&client->dev, "unable to create /proc entry\n");
 		ret = -EFAULT;
-		goto free_fb;
+		goto out_0;
 	}
+
+	entry->read_proc = adv7393_read_proc;
+	entry->write_proc = adv7393_write_proc;
+	entry->data = fbdev;
+
 	return 0;
 
-free_fb:
+ out_0:
 	unregister_framebuffer(&fbdev->info);
-free_irq_ppi:
+ out_1:
 	free_irq(IRQ_PPI_ERROR, fbdev);
-free_ch_ppi:
+ out_3:
 	free_dma(CH_PPI);
-free_cmap:
-	fb_dealloc_cmap(&fbdev->info.cmap);
-free_palette:
-	kfree(fbdev->info.pseudo_palette);
-free_fb_mem:
+ out_4:
 	dma_free_coherent(NULL, fbdev->fb_len, fbdev->fb_mem,
 			  fbdev->dma_handle);
-free_ppi_pins:
+ out_5:
+	fb_dealloc_cmap(&fbdev->info.cmap);
+ out_6:
+	kfree(fbdev->info.pseudo_palette);
+ out_7:
 	peripheral_free_list(ppi_pins);
-free_gpio:
-	if (ANOMALY_05000400)
-		gpio_free(P_IDENT(P_PPI0_FS3));
-free_fbdev:
+ out_8:
 	kfree(fbdev);
 
 	return ret;
@@ -714,7 +718,7 @@ static int bfin_adv7393_fb_setcolreg(u_int regno, u_int red, u_int green,
 	return 0;
 }
 
-static int bfin_adv7393_fb_remove(struct i2c_client *client)
+static int __devexit bfin_adv7393_fb_remove(struct i2c_client *client)
 {
 	struct adv7393fb_device *fbdev = i2c_get_clientdata(client);
 
@@ -789,7 +793,7 @@ static struct i2c_driver bfin_adv7393_fb_driver = {
 #endif
 	},
 	.probe = bfin_adv7393_fb_probe,
-	.remove = bfin_adv7393_fb_remove,
+	.remove = __devexit_p(bfin_adv7393_fb_remove),
 	.id_table = bfin_adv7393_id,
 };
 

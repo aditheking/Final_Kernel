@@ -234,32 +234,19 @@ static void tfp410_mode_set(struct intel_dvo_device *dvo,
 }
 
 /* set the tfp410 power state */
-static void tfp410_dpms(struct intel_dvo_device *dvo, bool enable)
+static void tfp410_dpms(struct intel_dvo_device *dvo, int mode)
 {
 	uint8_t ctl1;
 
 	if (!tfp410_readb(dvo, TFP410_CTL_1, &ctl1))
 		return;
 
-	if (enable)
+	if (mode == DRM_MODE_DPMS_ON)
 		ctl1 |= TFP410_CTL_1_PD;
 	else
 		ctl1 &= ~TFP410_CTL_1_PD;
 
 	tfp410_writeb(dvo, TFP410_CTL_1, ctl1);
-}
-
-static bool tfp410_get_hw_state(struct intel_dvo_device *dvo)
-{
-	uint8_t ctl1;
-
-	if (!tfp410_readb(dvo, TFP410_CTL_1, &ctl1))
-		return false;
-
-	if (ctl1 & TFP410_CTL_1_PD)
-		return true;
-	else
-		return false;
 }
 
 static void tfp410_dump_regs(struct intel_dvo_device *dvo)
@@ -312,7 +299,6 @@ struct intel_dvo_dev_ops tfp410_ops = {
 	.mode_valid = tfp410_mode_valid,
 	.mode_set = tfp410_mode_set,
 	.dpms = tfp410_dpms,
-	.get_hw_state = tfp410_get_hw_state,
 	.dump_regs = tfp410_dump_regs,
 	.destroy = tfp410_destroy,
 };

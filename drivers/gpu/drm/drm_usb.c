@@ -1,4 +1,4 @@
-#include <drm/drmP.h>
+#include "drmP.h"
 #include <linux/usb.h>
 #include <linux/module.h>
 
@@ -18,7 +18,7 @@ int drm_get_usb_dev(struct usb_interface *interface,
 
 	usbdev = interface_to_usbdev(interface);
 	dev->usbdev = usbdev;
-	dev->dev = &interface->dev;
+	dev->dev = &usbdev->dev;
 
 	mutex_lock(&drm_global_mutex);
 

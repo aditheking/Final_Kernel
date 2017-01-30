@@ -90,7 +90,7 @@ static void cdv_hdmi_mode_set(struct drm_encoder *encoder,
 }
 
 static bool cdv_hdmi_mode_fixup(struct drm_encoder *encoder,
-				  const struct drm_display_mode *mode,
+				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	return true;
@@ -139,6 +139,8 @@ static enum drm_connector_status cdv_hdmi_detect(
 {
 	struct psb_intel_encoder *psb_intel_encoder =
 					psb_intel_attached_encoder(connector);
+	struct psb_intel_connector *psb_intel_connector =
+					to_psb_intel_connector(connector);
 	struct mid_intel_hdmi_priv *hdmi_priv = psb_intel_encoder->dev_priv;
 	struct edid *edid = NULL;
 	enum drm_connector_status status = connector_status_disconnected;
@@ -155,6 +157,8 @@ static enum drm_connector_status cdv_hdmi_detect(
 			hdmi_priv->has_hdmi_audio =
 						drm_detect_monitor_audio(edid);
 		}
+
+		psb_intel_connector->base.display_info.raw_edid = NULL;
 		kfree(edid);
 	}
 	return status;
@@ -185,14 +189,14 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 			return -1;
 		}
 
-		if (drm_object_property_get_value(&connector->base,
+		if (drm_connector_property_get_value(connector,
 							property, &curValue))
 			return -1;
 
 		if (curValue == value)
 			return 0;
 
-		if (drm_object_property_set_value(&connector->base,
+		if (drm_connector_property_set_value(connector,
 							property, value))
 			return -1;
 
@@ -238,6 +242,8 @@ static int cdv_hdmi_get_modes(struct drm_connector *connector)
 static int cdv_hdmi_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
+	struct drm_psb_private *dev_priv = connector->dev->dev_private;
+
 	if (mode->clock > 165000)
 		return MODE_CLOCK_HIGH;
 	if (mode->clock < 20000)
@@ -250,6 +256,11 @@ static int cdv_hdmi_mode_valid(struct drm_connector *connector,
 	/* just in case */
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return MODE_NO_INTERLACE;
+
+	/* We assume worst case scenario of 32 bpp here, since we don't know */
+	if ((ALIGN(mode->hdisplay * 4, 64) * mode->vdisplay) >
+	    dev_priv->vram_stolen_size)
+		return MODE_MEM;
 
 	return MODE_OK;
 }
@@ -319,7 +330,6 @@ void cdv_hdmi_init(struct drm_device *dev,
 		goto err_priv;
 
 	connector = &psb_intel_connector->base;
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	encoder = &psb_intel_encoder->base;
 	drm_connector_init(dev, connector,
 			   &cdv_hdmi_connector_funcs,
@@ -342,18 +352,16 @@ void cdv_hdmi_init(struct drm_device *dev,
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	drm_object_attach_property(&connector->base,
+	drm_connector_attach_property(connector,
 				      dev->mode_config.scaling_mode_property,
 				      DRM_MODE_SCALE_FULLSCREEN);
 
 	switch (reg) {
 	case SDVOB:
 		ddc_bus = GPIOE;
-		psb_intel_encoder->ddi_select = DDI0_SELECT;
 		break;
 	case SDVOC:
 		ddc_bus = GPIOD;
-		psb_intel_encoder->ddi_select = DDI1_SELECT;
 		break;
 	default:
 		DRM_ERROR("unknown reg 0x%x for HDMI\n", reg);

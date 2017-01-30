@@ -18,9 +18,9 @@
 #include <linux/err.h>
 #include <linux/export.h>
 
-#include <drm/drm_sysfs.h>
-#include <drm/drm_core.h>
-#include <drm/drmP.h>
+#include "drm_sysfs.h"
+#include "drm_core.h"
+#include "drmP.h"
 
 #define to_drm_minor(d) container_of(d, struct drm_minor, kdev)
 #define to_drm_connector(d) container_of(d, struct drm_connector, kdev)
@@ -134,7 +134,6 @@ void drm_sysfs_destroy(void)
 		return;
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
-	drm_class = NULL;
 }
 
 /**
@@ -182,7 +181,7 @@ static ssize_t dpms_show(struct device *device,
 	uint64_t dpms_status;
 	int ret;
 
-	ret = drm_object_property_get_value(&connector->base,
+	ret = drm_connector_property_get_value(connector,
 					    dev->mode_config.dpms_property,
 					    &dpms_status);
 	if (ret)
@@ -277,7 +276,7 @@ static ssize_t subconnector_show(struct device *device,
 		return 0;
 	}
 
-	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
+	ret = drm_connector_property_get_value(connector, prop, &subconnector);
 	if (ret)
 		return 0;
 
@@ -318,7 +317,7 @@ static ssize_t select_subconnector_show(struct device *device,
 		return 0;
 	}
 
-	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
+	ret = drm_connector_property_get_value(connector, prop, &subconnector);
 	if (ret)
 		return 0;
 
@@ -348,17 +347,17 @@ static struct bin_attribute edid_attr = {
 };
 
 /**
- * drm_sysfs_connector_add - add a connector to sysfs
+ * drm_sysfs_connector_add - add an connector to sysfs
  * @connector: connector to add
  *
- * Create a connector device in sysfs, along with its associated connector
+ * Create an connector device in sysfs, along with its associated connector
  * properties (so far, connection status, dpms, mode list & edid) and
  * generate a hotplug event so userspace knows there's a new connector
  * available.
  *
  * Note:
- * This routine should only be called *once* for each registered connector.
- * A second call for an already registered connector will trigger the BUG_ON
+ * This routine should only be called *once* for each DRM minor registered.
+ * A second call for an already registered device will trigger the BUG_ON
  * below.
  */
 int drm_sysfs_connector_add(struct drm_connector *connector)
@@ -367,7 +366,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	int attr_cnt = 0;
 	int opt_cnt = 0;
 	int i;
-	int ret;
+	int ret = 0;
 
 	/* We shouldn't get called more than once for the same connector */
 	BUG_ON(device_is_registered(&connector->kdev));
@@ -555,9 +554,6 @@ void drm_sysfs_device_remove(struct drm_minor *minor)
 
 int drm_class_device_register(struct device *dev)
 {
-	if (!drm_class || IS_ERR(drm_class))
-		return -ENOENT;
-
 	dev->class = drm_class;
 	return device_register(dev);
 }

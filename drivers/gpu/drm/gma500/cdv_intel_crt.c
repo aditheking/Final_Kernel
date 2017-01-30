@@ -67,6 +67,8 @@ static void cdv_intel_crt_dpms(struct drm_encoder *encoder, int mode)
 static int cdv_intel_crt_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
+	struct drm_psb_private *dev_priv = connector->dev->dev_private;
+	int max_clock = 0;
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
@@ -75,14 +77,23 @@ static int cdv_intel_crt_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_LOW;
 
 	/* The max clock for CDV is 355 instead of 400 */
-	if (mode->clock > 355000)
+	max_clock = 355000;
+	if (mode->clock > max_clock)
 		return MODE_CLOCK_HIGH;
+
+	if (mode->hdisplay > 1680 || mode->vdisplay > 1050)
+		return MODE_PANEL;
+
+	/* We assume worst case scenario of 32 bpp here, since we don't know */
+	if ((ALIGN(mode->hdisplay * 4, 64) * mode->vdisplay) >
+	    dev_priv->vram_stolen_size)
+		return MODE_MEM;
 
 	return MODE_OK;
 }
 
 static bool cdv_intel_crt_mode_fixup(struct drm_encoder *encoder,
-				 const struct drm_display_mode *mode,
+				 struct drm_display_mode *mode,
 				 struct drm_display_mode *adjusted_mode)
 {
 	return true;
@@ -145,7 +156,13 @@ static bool cdv_intel_crt_detect_hotplug(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 	u32 hotplug_en;
 	int i, tries = 0, ret = false;
-	u32 orig;
+	u32 adpa_orig;
+
+	/* disable the DAC when doing the hotplug detection */
+
+	adpa_orig = REG_READ(ADPA);
+
+	REG_WRITE(ADPA, adpa_orig & ~(ADPA_DAC_ENABLE));
 
 	/*
 	 * On a CDV thep, CRT detect sequence need to be done twice
@@ -153,7 +170,7 @@ static bool cdv_intel_crt_detect_hotplug(struct drm_connector *connector,
 	 */
 	tries = 2;
 
-	orig = hotplug_en = REG_READ(PORT_HOTPLUG_EN);
+	hotplug_en = REG_READ(PORT_HOTPLUG_EN);
 	hotplug_en &= ~(CRT_HOTPLUG_DETECT_MASK);
 	hotplug_en |= CRT_HOTPLUG_FORCE_DETECT;
 
@@ -178,11 +195,8 @@ static bool cdv_intel_crt_detect_hotplug(struct drm_connector *connector,
 	    CRT_HOTPLUG_MONITOR_NONE)
 		ret = true;
 
-	 /* clear the interrupt we just generated, if any */
-	REG_WRITE(PORT_HOTPLUG_STAT, CRT_HOTPLUG_INT_STATUS);
-
-	/* and put the bits back */
-	REG_WRITE(PORT_HOTPLUG_EN, orig);
+	/* Restore the saved ADPA */
+	REG_WRITE(ADPA, adpa_orig);
 	return ret;
 }
 
@@ -276,7 +290,6 @@ void cdv_intel_crt_init(struct drm_device *dev,
 		goto failed_connector;
 
 	connector = &psb_intel_connector->base;
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	drm_connector_init(dev, connector,
 		&cdv_intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
 

@@ -38,12 +38,12 @@
 #include <linux/swap.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <drm/drm_cache.h>
-#include <drm/drm_mem_util.h>
-#include <drm/ttm/ttm_module.h>
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_page_alloc.h>
+#include "drm_cache.h"
+#include "drm_mem_util.h"
+#include "ttm/ttm_module.h"
+#include "ttm/ttm_bo_driver.h"
+#include "ttm/ttm_placement.h"
+#include "ttm/ttm_page_alloc.h"
 
 /**
  * Allocates storage for pointers to the pages that back the ttm.
@@ -170,7 +170,7 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 		ttm_tt_unbind(ttm);
 	}
 
-	if (ttm->state == tt_unbound) {
+	if (likely(ttm->pages != NULL)) {
 		ttm->bdev->driver->ttm_tt_unpopulate(ttm);
 	}
 
@@ -290,13 +290,15 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 	struct file *swap_storage;
 	struct page *from_page;
 	struct page *to_page;
+	void *from_virtual;
+	void *to_virtual;
 	int i;
 	int ret = -ENOMEM;
 
 	swap_storage = ttm->swap_storage;
 	BUG_ON(swap_storage == NULL);
 
-	swap_space = file_inode(swap_storage)->i_mapping;
+	swap_space = swap_storage->f_path.dentry->d_inode->i_mapping;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = shmem_read_mapping_page(swap_space, i);
@@ -308,7 +310,13 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 		if (unlikely(to_page == NULL))
 			goto out_err;
 
-		copy_highpage(to_page, from_page);
+		preempt_disable();
+		from_virtual = kmap_atomic(from_page);
+		to_virtual = kmap_atomic(to_page);
+		memcpy(to_virtual, from_virtual, PAGE_SIZE);
+		kunmap_atomic(to_virtual);
+		kunmap_atomic(from_virtual);
+		preempt_enable();
 		page_cache_release(from_page);
 	}
 
@@ -328,6 +336,8 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 	struct file *swap_storage;
 	struct page *from_page;
 	struct page *to_page;
+	void *from_virtual;
+	void *to_virtual;
 	int i;
 	int ret = -ENOMEM;
 
@@ -345,7 +355,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 	} else
 		swap_storage = persistent_swap_storage;
 
-	swap_space = file_inode(swap_storage)->i_mapping;
+	swap_space = swap_storage->f_path.dentry->d_inode->i_mapping;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = ttm->pages[i];
@@ -356,7 +366,13 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 			ret = PTR_ERR(to_page);
 			goto out_err;
 		}
-		copy_highpage(to_page, from_page);
+		preempt_disable();
+		from_virtual = kmap_atomic(from_page);
+		to_virtual = kmap_atomic(to_page);
+		memcpy(to_virtual, from_virtual, PAGE_SIZE);
+		kunmap_atomic(to_virtual);
+		kunmap_atomic(from_virtual);
+		preempt_enable();
 		set_page_dirty(to_page);
 		mark_page_accessed(to_page);
 		page_cache_release(to_page);

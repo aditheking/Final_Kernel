@@ -32,7 +32,8 @@
 #include <linux/io.h>
 #include <linux/math64.h>
 
-#include <linux/platform_data/video-imxfb.h>
+#include <mach/imxfb.h>
+#include <mach/hardware.h>
 
 /*
  * Complain if VAR is out of range.
@@ -52,8 +53,8 @@
 #define LCDC_SIZE	0x04
 #define SIZE_XMAX(x)	((((x) >> 4) & 0x3f) << 20)
 
-#define YMAX_MASK_IMX1	0x1ff
-#define YMAX_MASK_IMX21	0x3ff
+#define YMAX_MASK       (cpu_is_mx1() ? 0x1ff : 0x3ff)
+#define SIZE_YMAX(y)	((y) & YMAX_MASK)
 
 #define LCDC_VPW	0x08
 #define VPW_VPW(x)	((x) & 0x3ff)
@@ -127,19 +128,10 @@ struct imxfb_rgb {
 	struct fb_bitfield	transp;
 };
 
-enum imxfb_type {
-	IMX1_FB,
-	IMX21_FB,
-};
-
 struct imxfb_info {
 	struct platform_device  *pdev;
 	void __iomem		*regs;
-	struct clk		*clk_ipg;
-	struct clk		*clk_ahb;
-	struct clk		*clk_per;
-	enum imxfb_type		devtype;
-	bool			enabled;
+	struct clk		*clk;
 
 	/*
 	 * These are the addresses we mapped
@@ -173,24 +165,6 @@ struct imxfb_info {
 	void (*lcd_power)(int);
 	void (*backlight_power)(int);
 };
-
-static struct platform_device_id imxfb_devtype[] = {
-	{
-		.name = "imx1-fb",
-		.driver_data = IMX1_FB,
-	}, {
-		.name = "imx21-fb",
-		.driver_data = IMX21_FB,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, imxfb_devtype);
-
-static inline int is_imx1_fb(struct imxfb_info *fbi)
-{
-	return fbi->devtype == IMX1_FB;
-}
 
 #define IMX_NAME	"IMX"
 
@@ -366,7 +340,7 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	pr_debug("var->bits_per_pixel=%d\n", var->bits_per_pixel);
 
-	lcd_clk = clk_get_rate(fbi->clk_per);
+	lcd_clk = clk_get_rate(fbi->clk);
 
 	tmp = var->pixclock * (unsigned long long)lcd_clk;
 
@@ -390,7 +364,7 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 	case 16:
 	default:
-		if (is_imx1_fb(fbi))
+		if (cpu_is_mx1())
 			pcr |= PCR_BPIX_12;
 		else
 			pcr |= PCR_BPIX_16;
@@ -481,17 +455,11 @@ static int imxfb_bl_update_status(struct backlight_device *bl)
 
 	fbi->pwmr = (fbi->pwmr & ~0xFF) | brightness;
 
-	if (bl->props.fb_blank != FB_BLANK_UNBLANK) {
-		clk_prepare_enable(fbi->clk_ipg);
-		clk_prepare_enable(fbi->clk_ahb);
-		clk_prepare_enable(fbi->clk_per);
-	}
+	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
+		clk_enable(fbi->clk);
 	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
-	if (bl->props.fb_blank != FB_BLANK_UNBLANK) {
-		clk_disable_unprepare(fbi->clk_per);
-		clk_disable_unprepare(fbi->clk_ahb);
-		clk_disable_unprepare(fbi->clk_ipg);
-	}
+	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
+		clk_disable(fbi->clk);
 
 	return 0;
 }
@@ -537,10 +505,6 @@ static void imxfb_exit_backlight(struct imxfb_info *fbi)
 
 static void imxfb_enable_controller(struct imxfb_info *fbi)
 {
-
-	if (fbi->enabled)
-		return;
-
 	pr_debug("Enabling LCD controller\n");
 
 	writel(fbi->screen_dma, fbi->regs + LCDC_SSA);
@@ -558,10 +522,7 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	 */
 	writel(RMCR_LCDC_EN_MX1, fbi->regs + LCDC_RMCR);
 
-	clk_prepare_enable(fbi->clk_ipg);
-	clk_prepare_enable(fbi->clk_ahb);
-	clk_prepare_enable(fbi->clk_per);
-	fbi->enabled = true;
+	clk_enable(fbi->clk);
 
 	if (fbi->backlight_power)
 		fbi->backlight_power(1);
@@ -571,9 +532,6 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 
 static void imxfb_disable_controller(struct imxfb_info *fbi)
 {
-	if (!fbi->enabled)
-		return;
-
 	pr_debug("Disabling LCD controller\n");
 
 	if (fbi->backlight_power)
@@ -581,10 +539,7 @@ static void imxfb_disable_controller(struct imxfb_info *fbi)
 	if (fbi->lcd_power)
 		fbi->lcd_power(0);
 
-	clk_disable_unprepare(fbi->clk_per);
-	clk_disable_unprepare(fbi->clk_ipg);
-	clk_disable_unprepare(fbi->clk_ahb);
-	fbi->enabled = false;
+	clk_disable(fbi->clk);
 
 	writel(0, fbi->regs + LCDC_RMCR);
 }
@@ -629,7 +584,6 @@ static struct fb_ops imxfb_ops = {
 static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct imxfb_info *fbi = info->par;
-	u32 ymax_mask = is_imx1_fb(fbi) ? YMAX_MASK_IMX1 : YMAX_MASK_IMX21;
 
 	pr_debug("var: xres=%d hslen=%d lm=%d rm=%d\n",
 		var->xres, var->hsync_len,
@@ -651,7 +605,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	if (var->right_margin > 255)
 		printk(KERN_ERR "%s: invalid right_margin %d\n",
 			info->fix.id, var->right_margin);
-	if (var->yres < 1 || var->yres > ymax_mask)
+	if (var->yres < 1 || var->yres > YMAX_MASK)
 		printk(KERN_ERR "%s: invalid yres %d\n",
 			info->fix.id, var->yres);
 	if (var->vsync_len > 100)
@@ -679,7 +633,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 		VCR_V_WAIT_2(var->upper_margin),
 		fbi->regs + LCDC_VCR);
 
-	writel(SIZE_XMAX(var->xres) | (var->yres & ymax_mask),
+	writel(SIZE_XMAX(var->xres) | SIZE_YMAX(var->yres),
 			fbi->regs + LCDC_SIZE);
 
 	writel(fbi->pcr, fbi->regs + LCDC_PCR);
@@ -738,8 +692,6 @@ static int __init imxfb_init_fbinfo(struct platform_device *pdev)
 		return -ENOMEM;
 
 	memset(fbi, 0, sizeof(struct imxfb_info));
-
-	fbi->devtype = pdev->id_entry->driver_data;
 
 	strlcpy(info->fix.id, IMX_NAME, sizeof(info->fix.id));
 
@@ -818,28 +770,16 @@ static int __init imxfb_probe(struct platform_device *pdev)
 		goto failed_req;
 	}
 
-	fbi->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(fbi->clk_ipg)) {
-		ret = PTR_ERR(fbi->clk_ipg);
-		goto failed_getclock;
-	}
-
-	fbi->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
-	if (IS_ERR(fbi->clk_ahb)) {
-		ret = PTR_ERR(fbi->clk_ahb);
-		goto failed_getclock;
-	}
-
-	fbi->clk_per = devm_clk_get(&pdev->dev, "per");
-	if (IS_ERR(fbi->clk_per)) {
-		ret = PTR_ERR(fbi->clk_per);
+	fbi->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(fbi->clk)) {
+		ret = PTR_ERR(fbi->clk);
+		dev_err(&pdev->dev, "unable to get clock: %d\n", ret);
 		goto failed_getclock;
 	}
 
 	fbi->regs = ioremap(res->start, resource_size(res));
 	if (fbi->regs == NULL) {
 		dev_err(&pdev->dev, "Cannot map frame buffer registers\n");
-		ret = -ENOMEM;
 		goto failed_ioremap;
 	}
 
@@ -918,6 +858,7 @@ failed_platform_init:
 failed_map:
 	iounmap(fbi->regs);
 failed_ioremap:
+	clk_put(fbi->clk);
 failed_getclock:
 	release_mem_region(res->start, resource_size(res));
 failed_req:
@@ -928,7 +869,7 @@ failed_init:
 	return ret;
 }
 
-static int imxfb_remove(struct platform_device *pdev)
+static int __devexit imxfb_remove(struct platform_device *pdev)
 {
 	struct imx_fb_platform_data *pdata;
 	struct fb_info *info = platform_get_drvdata(pdev);
@@ -954,6 +895,8 @@ static int imxfb_remove(struct platform_device *pdev)
 
 	iounmap(fbi->regs);
 	release_mem_region(res->start, resource_size(res));
+	clk_disable(fbi->clk);
+	clk_put(fbi->clk);
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -970,12 +913,11 @@ void  imxfb_shutdown(struct platform_device * dev)
 static struct platform_driver imxfb_driver = {
 	.suspend	= imxfb_suspend,
 	.resume		= imxfb_resume,
-	.remove		= imxfb_remove,
+	.remove		= __devexit_p(imxfb_remove),
 	.shutdown	= imxfb_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},
-	.id_table	= imxfb_devtype,
 };
 
 static int imxfb_setup(void)

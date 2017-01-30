@@ -21,7 +21,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
+#include "gma_drm.h"
 #include "psb_drv.h"
 #include "framebuffer.h"
 #include "psb_reg.h"
@@ -79,14 +79,6 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 	{ 0x8086, 0x0be5, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
 	{ 0x8086, 0x0be6, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
 	{ 0x8086, 0x0be7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
-	{ 0x8086, 0x0be8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
-	{ 0x8086, 0x0be9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
-	{ 0x8086, 0x0bea, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
-	{ 0x8086, 0x0beb, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
-	{ 0x8086, 0x0bec, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
-	{ 0x8086, 0x0bed, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
-	{ 0x8086, 0x0bee, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
-	{ 0x8086, 0x0bef, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
 #endif
 	{ 0, }
 };
@@ -149,17 +141,11 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 
 static void psb_lastclose(struct drm_device *dev)
 {
-	int ret;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_fbdev *fbdev = dev_priv->fbdev;
-
-	drm_modeset_lock_all(dev);
-	ret = drm_fb_helper_restore_fbdev_mode(&fbdev->psb_fb_helper);
-	if (ret)
-		DRM_DEBUG("failed to restore crtc mode\n");
-	drm_modeset_unlock_all(dev);
-
 	return;
+}
+
+static void psb_do_takedown(struct drm_device *dev)
+{
 }
 
 static int psb_do_init(struct drm_device *dev)
@@ -186,6 +172,24 @@ static int psb_do_init(struct drm_device *dev)
 	dev_priv->gatt_free_offset = pg->mmu_gatt_start +
 	    (stolen_gtt << PAGE_SHIFT) * 1024;
 
+	if (1 || drm_debug) {
+		uint32_t core_id = PSB_RSGX32(PSB_CR_CORE_ID);
+		uint32_t core_rev = PSB_RSGX32(PSB_CR_CORE_REVISION);
+		DRM_INFO("SGX core id = 0x%08x\n", core_id);
+		DRM_INFO("SGX core rev major = 0x%02x, minor = 0x%02x\n",
+			 (core_rev & _PSB_CC_REVISION_MAJOR_MASK) >>
+			 _PSB_CC_REVISION_MAJOR_SHIFT,
+			 (core_rev & _PSB_CC_REVISION_MINOR_MASK) >>
+			 _PSB_CC_REVISION_MINOR_SHIFT);
+		DRM_INFO
+		    ("SGX core rev maintenance = 0x%02x, designer = 0x%02x\n",
+		     (core_rev & _PSB_CC_REVISION_MAINTENANCE_MASK) >>
+		     _PSB_CC_REVISION_MAINTENANCE_SHIFT,
+		     (core_rev & _PSB_CC_REVISION_DESIGNER_MASK) >>
+		     _PSB_CC_REVISION_DESIGNER_SHIFT);
+	}
+
+
 	spin_lock_init(&dev_priv->irqmask_lock);
 	spin_lock_init(&dev_priv->lock_2d);
 
@@ -200,6 +204,7 @@ static int psb_do_init(struct drm_device *dev)
 	PSB_WSGX32(pg->gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 	return 0;
 out_err:
+	psb_do_takedown(dev);
 	return ret;
 }
 
@@ -209,16 +214,18 @@ static int psb_driver_unload(struct drm_device *dev)
 
 	/* Kill vblank etc here */
 
+	gma_backlight_exit(dev);
+
+	psb_modeset_cleanup(dev);
 
 	if (dev_priv) {
-		if (dev_priv->backlight_device)
-			gma_backlight_exit(dev);
-		psb_modeset_cleanup(dev);
+		psb_lid_timer_takedown(dev_priv);
+		gma_intel_opregion_exit(dev);
 
 		if (dev_priv->ops->chip_teardown)
 			dev_priv->ops->chip_teardown(dev);
+		psb_do_takedown(dev);
 
-		psb_intel_opregion_fini(dev);
 
 		if (dev_priv->pf_pd) {
 			psb_mmu_free_pagedir(dev_priv->pf_pd);
@@ -239,7 +246,6 @@ static int psb_driver_unload(struct drm_device *dev)
 		}
 		psb_gtt_takedown(dev);
 		if (dev_priv->scratch_page) {
-			set_pages_wb(dev_priv->scratch_page, 1);
 			__free_page(dev_priv->scratch_page);
 			dev_priv->scratch_page = NULL;
 		}
@@ -252,13 +258,15 @@ static int psb_driver_unload(struct drm_device *dev)
 			dev_priv->sgx_reg = NULL;
 		}
 
-		/* Destroy VBT data */
-		psb_intel_destroy_bios(dev);
-
 		kfree(dev_priv);
 		dev->dev_private = NULL;
+
+		/*destroy VBT data*/
+		psb_intel_destroy_bios(dev);
 	}
+
 	gma_power_uninit(dev);
+
 	return 0;
 }
 
@@ -282,6 +290,11 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	pci_set_master(dev->pdev);
 
+	if (!IS_PSB(dev)) {
+		if (pci_enable_msi(dev->pdev))
+			dev_warn(dev->dev, "Enabling MSI failed!\n");
+	}
+
 	dev_priv->num_pipe = dev_priv->ops->pipes;
 
 	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
@@ -295,8 +308,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 							PSB_SGX_SIZE);
 	if (!dev_priv->sgx_reg)
 		goto out_err;
-
-	psb_intel_opregion_setup(dev);
 
 	ret = dev_priv->ops->chip_setup(dev);
 	if (ret)
@@ -337,7 +348,10 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	PSB_WSGX32(0x20000000, PSB_CR_PDS_EXEC_BASE);
 	PSB_WSGX32(0x30000000, PSB_CR_BIF_3D_REQ_BASE);
 
-	acpi_video_register();
+/*	igd_opregion_init(&dev_priv->opregion_dev); */
+/*	acpi_video_register(); */
+	if (dev_priv->lid_state)
+		psb_lid_timer_init(dev_priv);
 
 	ret = drm_vblank_init(dev, dev_priv->num_pipe);
 	if (ret)
@@ -356,8 +370,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
 	PSB_WVDC32(0xFFFFFFFF, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
-
-	drm_irq_install(dev);
+	if (IS_PSB(dev) && drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_irq_install(dev);
 
 	dev->vblank_disable_allowed = 1;
 
@@ -384,7 +398,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	if (ret)
 		return ret;
-	psb_intel_opregion_enable_asle(dev);
 #if 0
 	/*enable runtime pm at last*/
 	pm_runtime_enable(&dev->pdev->dev);
@@ -486,7 +499,7 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 	case PSB_MODE_OPERATION_MODE_VALID:
 		umode = &arg->mode;
 
-		drm_modeset_lock_all(dev);
+		mutex_lock(&dev->mode_config.mutex);
 
 		obj = drm_mode_object_find(dev, obj_id,
 					DRM_MODE_OBJECT_CONNECTOR);
@@ -535,7 +548,7 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 		if (mode)
 			drm_mode_destroy(dev, mode);
 mode_op_out:
-		drm_modeset_unlock_all(dev);
+		mutex_unlock(&dev->mode_config.mutex);
 		return ret;
 
 	default:
@@ -601,15 +614,12 @@ static void psb_remove(struct pci_dev *pdev)
 static const struct dev_pm_ops psb_pm_ops = {
 	.resume = gma_power_resume,
 	.suspend = gma_power_suspend,
-	.thaw = gma_power_thaw,
-	.freeze = gma_power_freeze,
-	.restore = gma_power_restore,
 	.runtime_suspend = psb_runtime_suspend,
 	.runtime_resume = psb_runtime_resume,
 	.runtime_idle = psb_runtime_idle,
 };
 
-static const struct vm_operations_struct psb_gem_vm_ops = {
+static struct vm_operations_struct psb_gem_vm_ops = {
 	.fault = psb_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
@@ -646,6 +656,7 @@ static struct drm_driver driver = {
 	.open = psb_driver_open,
 	.preclose = psb_driver_preclose,
 	.postclose = psb_driver_close,
+	.reclaim_buffers = drm_core_reclaim_buffers,
 
 	.gem_init_object = psb_gem_init_object,
 	.gem_free_object = psb_gem_free_object,

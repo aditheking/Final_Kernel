@@ -39,10 +39,6 @@ static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
 {
 	uint32_t mask = PSB_PTE_VALID;
 
-	/* Ensure we explode rather than put an invalid low mapping of
-	   a high mapping page into the gtt */
-	BUG_ON(pfn & ~(0xFFFFFFFF >> PAGE_SHIFT));
-
 	if (type & PSB_MMU_CACHED_MEMORY)
 		mask |= PSB_PTE_CACHED;
 	if (type & PSB_MMU_RO_MEMORY)
@@ -61,7 +57,7 @@ static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
  *	Given a gtt_range object return the GTT offset of the page table
  *	entries for this gtt_range
  */
-static u32 __iomem *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
+static u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long offset;
@@ -80,11 +76,9 @@ static u32 __iomem *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
  *	the GTT. This is protected via the gtt mutex which the caller
  *	must hold.
  */
-static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
-			  int resume)
+static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 {
-	u32 __iomem *gtt_slot;
-	u32 pte;
+	u32 *gtt_slot, pte;
 	struct page **pages;
 	int i;
 
@@ -98,10 +92,8 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
 	gtt_slot = psb_gtt_entry(dev, r);
 	pages = r->pages;
 
-	if (!resume) {
-		/* Make sure changes are visible to the GPU */
-		set_pages_array_wc(pages, r->npage);
-	}
+	/* Make sure changes are visible to the GPU */
+	set_pages_array_uc(pages, r->npage);
 
 	/* Write our page entries into the GTT itself */
 	for (i = r->roll; i < r->npage; i++) {
@@ -130,8 +122,7 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
 static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	u32 __iomem *gtt_slot;
-	u32 pte;
+	u32 *gtt_slot, pte;
 	int i;
 
 	WARN_ON(r->stolen);
@@ -157,8 +148,7 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
  */
 void psb_gtt_roll(struct drm_device *dev, struct gtt_range *r, int roll)
 {
-	u32 __iomem *gtt_slot;
-	u32 pte;
+	u32 *gtt_slot, pte;
 	int i;
 
 	if (roll >= r->npage) {
@@ -205,7 +195,7 @@ static int psb_gtt_attach_pages(struct gtt_range *gt)
 	WARN_ON(gt->pages);
 
 	/* This is the shared memory object that backs the GEM resource */
-	inode = file_inode(gt->gem.filp);
+	inode = gt->gem.filp->f_path.dentry->d_inode;
 	mapping = inode->i_mapping;
 
 	gt->pages = kmalloc(pages * sizeof(struct page *), GFP_KERNEL);
@@ -272,7 +262,7 @@ int psb_gtt_pin(struct gtt_range *gt)
 		ret = psb_gtt_attach_pages(gt);
 		if (ret < 0)
 			goto out;
-		ret = psb_gtt_insert(dev, gt, 0);
+		ret = psb_gtt_insert(dev, gt);
 		if (ret < 0) {
 			psb_gtt_detach_pages(gt);
 			goto out;
@@ -419,16 +409,16 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	unsigned long stolen_size, vram_stolen_size;
 	unsigned i, num_pages;
 	unsigned pfn_base;
+	uint32_t vram_pages;
+	uint32_t dvmt_mode = 0;
 	struct psb_gtt *pg;
 
 	int ret = 0;
 	uint32_t pte;
 
-	if (!resume) {
-		mutex_init(&dev_priv->gtt_mutex);
-		psb_gtt_alloc(dev);
-	}
+	mutex_init(&dev_priv->gtt_mutex);
 
+	psb_gtt_alloc(dev);
 	pg = &dev_priv->gtt;
 
 	/* Enable the GTT */
@@ -493,8 +483,13 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 
 	stolen_size = vram_stolen_size;
 
-	dev_dbg(dev->dev, "Stolen memory base 0x%x, size %luK\n",
-			dev_priv->stolen_base, vram_stolen_size / 1024);
+	printk(KERN_INFO "Stolen memory information\n");
+	printk(KERN_INFO "       base in RAM: 0x%x\n", dev_priv->stolen_base);
+	printk(KERN_INFO "       size: %luK, calculated by (GTT RAM base) - (Stolen base), seems wrong\n",
+		vram_stolen_size/1024);
+	dvmt_mode = (dev_priv->gmch_ctrl >> 4) & 0x7;
+	printk(KERN_INFO "      the correct size should be: %dM(dvmt mode=%d)\n",
+		(dvmt_mode == 1) ? 1 : (2 << (dvmt_mode - 1)), dvmt_mode);
 
 	if (resume && (gtt_pages != pg->gtt_pages) &&
 	    (stolen_size != pg->stolen_size)) {
@@ -510,8 +505,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	/*
 	 *	Map the GTT and the stolen memory area
 	 */
-	if (!resume)
-		dev_priv->gtt_map = ioremap_nocache(pg->gtt_phys_start,
+	dev_priv->gtt_map = ioremap_nocache(pg->gtt_phys_start,
 						gtt_pages << PAGE_SHIFT);
 	if (!dev_priv->gtt_map) {
 		dev_err(dev->dev, "Failure to map gtt.\n");
@@ -519,9 +513,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 		goto out_err;
 	}
 
-	if (!resume)
-		dev_priv->vram_addr = ioremap_wc(dev_priv->stolen_base,
-						 stolen_size);
+	dev_priv->vram_addr = ioremap_wc(dev_priv->stolen_base, stolen_size);
 	if (!dev_priv->vram_addr) {
 		dev_err(dev->dev, "Failure to map stolen base.\n");
 		ret = -ENOMEM;
@@ -533,8 +525,8 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	 */
 
 	pfn_base = dev_priv->stolen_base >> PAGE_SHIFT;
-	num_pages = vram_stolen_size >> PAGE_SHIFT;
-	dev_dbg(dev->dev, "Set up %d stolen pages starting at 0x%08x, GTT offset %dK\n",
+	vram_pages = num_pages = vram_stolen_size >> PAGE_SHIFT;
+	printk(KERN_INFO"Set up %d stolen pages starting at 0x%08x, GTT offset %dK\n",
 		num_pages, pfn_base << PAGE_SHIFT, 0);
 	for (i = 0; i < num_pages; ++i) {
 		pte = psb_gtt_mask_pte(pfn_base + i, 0);
@@ -556,32 +548,4 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 out_err:
 	psb_gtt_takedown(dev);
 	return ret;
-}
-
-int psb_gtt_restore(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct resource *r = dev_priv->gtt_mem->child;
-	struct gtt_range *range;
-	unsigned int restored = 0, total = 0, size = 0;
-
-	/* On resume, the gtt_mutex is already initialized */
-	mutex_lock(&dev_priv->gtt_mutex);
-	psb_gtt_init(dev, 1);
-
-	while (r != NULL) {
-		range = container_of(r, struct gtt_range, resource);
-		if (range->pages) {
-			psb_gtt_insert(dev, range, 1);
-			size += range->resource.end - range->resource.start;
-			restored++;
-		}
-		r = r->sibling;
-		total++;
-	}
-	mutex_unlock(&dev_priv->gtt_mutex);
-	DRM_DEBUG_DRIVER("Restored %u of %u gtt ranges (%u KB)", restored,
-			 total, (size / 1024));
-
-	return 0;
 }

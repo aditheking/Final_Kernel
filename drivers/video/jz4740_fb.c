@@ -136,7 +136,7 @@ struct jzfb {
 	uint32_t pseudo_palette[16];
 };
 
-static const struct fb_fix_screeninfo jzfb_fix = {
+static const struct fb_fix_screeninfo jzfb_fix __devinitdata = {
 	.id		= "JZ4740 FB",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
@@ -619,7 +619,7 @@ static struct  fb_ops jzfb_ops = {
 	.fb_setcolreg = jzfb_setcolreg,
 };
 
-static int jzfb_probe(struct platform_device *pdev)
+static int __devinit jzfb_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jzfb *jzfb;
@@ -632,10 +632,23 @@ static int jzfb_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!mem) {
+		dev_err(&pdev->dev, "Failed to get register memory resource\n");
+		return -ENXIO;
+	}
+
+	mem = request_mem_region(mem->start, resource_size(mem), pdev->name);
+	if (!mem) {
+		dev_err(&pdev->dev, "Failed to request register memory region\n");
+		return -EBUSY;
+	}
+
 	fb = framebuffer_alloc(sizeof(struct jzfb), &pdev->dev);
 	if (!fb) {
 		dev_err(&pdev->dev, "Failed to allocate framebuffer device\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_release_mem_region;
 	}
 
 	fb->fbops = &jzfb_ops;
@@ -644,26 +657,27 @@ static int jzfb_probe(struct platform_device *pdev)
 	jzfb = fb->par;
 	jzfb->pdev = pdev;
 	jzfb->pdata = pdata;
+	jzfb->mem = mem;
 
-	jzfb->ldclk = devm_clk_get(&pdev->dev, "lcd");
+	jzfb->ldclk = clk_get(&pdev->dev, "lcd");
 	if (IS_ERR(jzfb->ldclk)) {
 		ret = PTR_ERR(jzfb->ldclk);
 		dev_err(&pdev->dev, "Failed to get lcd clock: %d\n", ret);
 		goto err_framebuffer_release;
 	}
 
-	jzfb->lpclk = devm_clk_get(&pdev->dev, "lcd_pclk");
+	jzfb->lpclk = clk_get(&pdev->dev, "lcd_pclk");
 	if (IS_ERR(jzfb->lpclk)) {
 		ret = PTR_ERR(jzfb->lpclk);
 		dev_err(&pdev->dev, "Failed to get lcd pixel clock: %d\n", ret);
-		goto err_framebuffer_release;
+		goto err_put_ldclk;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	jzfb->base = devm_ioremap_resource(&pdev->dev, mem);
-	if (IS_ERR(jzfb->base)) {
-		ret = PTR_ERR(jzfb->base);
-		goto err_framebuffer_release;
+	jzfb->base = ioremap(mem->start, resource_size(mem));
+	if (!jzfb->base) {
+		dev_err(&pdev->dev, "Failed to ioremap register memory region\n");
+		ret = -EBUSY;
+		goto err_put_lpclk;
 	}
 
 	platform_set_drvdata(pdev, jzfb);
@@ -679,7 +693,7 @@ static int jzfb_probe(struct platform_device *pdev)
 	ret = jzfb_alloc_devmem(jzfb);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to allocate video memory\n");
-		goto err_framebuffer_release;
+		goto err_iounmap;
 	}
 
 	fb->fix = jzfb_fix;
@@ -720,12 +734,20 @@ err_free_devmem:
 
 	fb_dealloc_cmap(&fb->cmap);
 	jzfb_free_devmem(jzfb);
+err_iounmap:
+	iounmap(jzfb->base);
+err_put_lpclk:
+	clk_put(jzfb->lpclk);
+err_put_ldclk:
+	clk_put(jzfb->ldclk);
 err_framebuffer_release:
 	framebuffer_release(fb);
+err_release_mem_region:
+	release_mem_region(mem->start, resource_size(mem));
 	return ret;
 }
 
-static int jzfb_remove(struct platform_device *pdev)
+static int __devexit jzfb_remove(struct platform_device *pdev)
 {
 	struct jzfb *jzfb = platform_get_drvdata(pdev);
 
@@ -734,10 +756,16 @@ static int jzfb_remove(struct platform_device *pdev)
 	jz_gpio_bulk_free(jz_lcd_ctrl_pins, jzfb_num_ctrl_pins(jzfb));
 	jz_gpio_bulk_free(jz_lcd_data_pins, jzfb_num_data_pins(jzfb));
 
+	iounmap(jzfb->base);
+	release_mem_region(jzfb->mem->start, resource_size(jzfb->mem));
+
 	fb_dealloc_cmap(&jzfb->fb->cmap);
 	jzfb_free_devmem(jzfb);
 
 	platform_set_drvdata(pdev, NULL);
+
+	clk_put(jzfb->lpclk);
+	clk_put(jzfb->ldclk);
 
 	framebuffer_release(jzfb->fb);
 
@@ -794,7 +822,7 @@ static const struct dev_pm_ops jzfb_pm_ops = {
 
 static struct platform_driver jzfb_driver = {
 	.probe = jzfb_probe,
-	.remove = jzfb_remove,
+	.remove = __devexit_p(jzfb_remove),
 	.driver = {
 		.name = "jz4740-fb",
 		.pm = JZFB_PM_OPS,

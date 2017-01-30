@@ -25,7 +25,7 @@
  *
  **************************************************************************/
 
-#include <drm/drmP.h>
+#include "drmP.h"
 #include "vmwgfx_drv.h"
 
 #define VMW_FENCE_WRAP (1 << 31)
@@ -537,7 +537,7 @@ static void vmw_user_fence_destroy(struct vmw_fence_obj *fence)
 		container_of(fence, struct vmw_user_fence, fence);
 	struct vmw_fence_manager *fman = fence->fman;
 
-	ttm_base_object_kfree(ufence, base);
+	kfree(ufence);
 	/*
 	 * Free kernel space accounting.
 	 */

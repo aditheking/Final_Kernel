@@ -375,7 +375,7 @@ int psb_intel_lvds_mode_valid(struct drm_connector *connector,
 }
 
 bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
-				  const struct drm_display_mode *mode,
+				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -603,7 +603,7 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 			goto set_prop_error;
 		}
 
-		if (drm_object_property_get_value(&connector->base,
+		if (drm_connector_property_get_value(connector,
 						     property,
 						     &curval))
 			goto set_prop_error;
@@ -611,7 +611,7 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 		if (curval == value)
 			goto set_prop_done;
 
-		if (drm_object_property_set_value(&connector->base,
+		if (drm_connector_property_set_value(connector,
 							property,
 							value))
 			goto set_prop_error;
@@ -626,12 +626,21 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 				goto set_prop_error;
 		}
 	} else if (!strcmp(property->name, "backlight")) {
-		if (drm_object_property_set_value(&connector->base,
+		if (drm_connector_property_set_value(connector,
 							property,
 							value))
 			goto set_prop_error;
-		else
-                        gma_backlight_set(encoder->dev, value);
+		else {
+#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+			struct drm_psb_private *devp =
+						encoder->dev->dev_private;
+			struct backlight_device *bd = devp->backlight_device;
+			if (bd) {
+				bd->props.brightness = value;
+				backlight_update_status(bd);
+			}
+#endif
+		}
 	} else if (!strcmp(property->name, "DPMS")) {
 		struct drm_encoder_helper_funcs *hfuncs
 						= encoder->helper_private;
@@ -746,10 +755,10 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	connector->doublescan_allowed = false;
 
 	/*Attach connector properties*/
-	drm_object_attach_property(&connector->base,
+	drm_connector_attach_property(connector,
 				      dev->mode_config.scaling_mode_property,
 				      DRM_MODE_SCALE_FULLSCREEN);
-	drm_object_attach_property(&connector->base,
+	drm_connector_attach_property(connector,
 				      dev_priv->backlight_property,
 				      BRIGHTNESS_MAX_LEVEL);
 

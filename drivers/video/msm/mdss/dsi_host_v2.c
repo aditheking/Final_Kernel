@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,7 +26,6 @@
 #include "dsi_io_v2.h"
 #include "dsi_host_v2.h"
 #include "mdss_debug.h"
-#include "mdp3.h"
 
 #define DSI_POLL_SLEEP_US 1000
 #define DSI_POLL_TIMEOUT_US 16000
@@ -38,6 +37,7 @@
 #define DSI_MAX_BYTES_TO_READ 16
 
 struct dsi_host_v2_private {
+	int irq_no;
 	unsigned char *dsi_base;
 	size_t dsi_reg_size;
 	struct device dis_dev;
@@ -49,6 +49,12 @@ struct dsi_host_v2_private {
 
 static struct dsi_host_v2_private *dsi_host_private;
 static int msm_dsi_clk_ctrl(struct mdss_panel_data *pdata, int enable);
+
+#if defined(CONFIG_FB_MSM_MDSS_DSI_DBG)
+extern unsigned char *dsi_ctrl_base;
+extern void dumpreg(void);
+extern void mdp3_dump_clk(void);
+#endif
 
 int msm_dsi_init(void)
 {
@@ -167,7 +173,7 @@ static void msm_dsi_set_irq(struct mdss_dsi_ctrl_pdata *ctrl, u32 mask)
 		return;
 	}
 	if (ctrl->dsi_irq_mask == 0) {
-		ctrl->mdss_util->enable_irq(ctrl->dsi_hw);
+		enable_irq(dsi_host_private->irq_no);
 		pr_debug("%s: IRQ Enable, mask=%x term=%x\n", __func__,
 			(int)ctrl->dsi_irq_mask, (int)mask);
 	}
@@ -188,7 +194,7 @@ static void msm_dsi_clear_irq(struct mdss_dsi_ctrl_pdata *ctrl, u32 mask)
 	}
 	ctrl->dsi_irq_mask &= ~mask;
 	if (ctrl->dsi_irq_mask == 0) {
-		ctrl->mdss_util->disable_irq(ctrl->dsi_hw);
+		disable_irq(dsi_host_private->irq_no);
 		pr_debug("%s: IRQ Disable, mask=%x term=%x\n", __func__,
 			(int)ctrl->dsi_irq_mask, (int)mask);
 	}
@@ -203,13 +209,6 @@ irqreturn_t msm_dsi_isr_handler(int irq, void *ptr)
 	struct mdss_dsi_ctrl_pdata *ctrl =
 		(struct mdss_dsi_ctrl_pdata *)ptr;
 
-	spin_lock(&ctrl->mdp_lock);
-
-	if (ctrl->dsi_irq_mask == 0) {
-		spin_unlock(&ctrl->mdp_lock);
-		return IRQ_HANDLED;
-	}
-
 	isr = MIPI_INP(dsi_host_private->dsi_base + DSI_INT_CTRL);
 	MIPI_OUTP(dsi_host_private->dsi_base + DSI_INT_CTRL, isr);
 
@@ -220,19 +219,21 @@ irqreturn_t msm_dsi_isr_handler(int irq, void *ptr)
 		msm_dsi_error(dsi_host_private->dsi_base);
 	}
 
+	spin_lock(&ctrl->mdp_lock);
+
 	if (isr & DSI_INTR_VIDEO_DONE)
 		complete(&ctrl->video_comp);
 
 	if (isr & DSI_INTR_CMD_DMA_DONE)
 		complete(&ctrl->dma_comp);
 
+	spin_unlock(&ctrl->mdp_lock);
+
 	if (isr & DSI_INTR_BTA_DONE)
 		complete(&ctrl->bta_comp);
 
 	if (isr & DSI_INTR_CMD_MDP_DONE)
 		complete(&ctrl->mdp_comp);
-
-	spin_unlock(&ctrl->mdp_lock);
 
 	return IRQ_HANDLED;
 }
@@ -241,14 +242,6 @@ int msm_dsi_irq_init(struct device *dev, int irq_no,
 			struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	int ret;
-	u32 isr;
-	struct mdss_hw *dsi_hw;
-
-	msm_dsi_ahb_ctrl(1);
-	isr = MIPI_INP(dsi_host_private->dsi_base + DSI_INT_CTRL);
-	isr &= ~DSI_INTR_ALL_MASK;
-	MIPI_OUTP(dsi_host_private->dsi_base + DSI_INT_CTRL, isr);
-	msm_dsi_ahb_ctrl(0);
 
 	ret = devm_request_irq(dev, irq_no, msm_dsi_isr_handler,
 				IRQF_DISABLED, "DSI", ctrl);
@@ -256,30 +249,8 @@ int msm_dsi_irq_init(struct device *dev, int irq_no,
 		pr_err("msm_dsi_irq_init request_irq() failed!\n");
 		return ret;
 	}
-
-	dsi_hw = kzalloc(sizeof(struct mdss_hw), GFP_KERNEL);
-	if (!dsi_hw) {
-		pr_err("no mem to save hw info: kzalloc fail\n");
-		return -ENOMEM;
-	}
-	ctrl->dsi_hw = dsi_hw;
-
-	dsi_hw->irq_info = kzalloc(sizeof(struct irq_info), GFP_KERNEL);
-	if (!dsi_hw->irq_info) {
-		kfree(dsi_hw);
-		pr_err("no mem to save irq info: kzalloc fail\n");
-		return -ENOMEM;
-	}
-
-	dsi_hw->hw_ndx = MDSS_HW_DSI0;
-	dsi_hw->irq_info->irq = irq_no;
-	dsi_hw->irq_info->irq_mask = 0;
-	dsi_hw->irq_info->irq_ena = false;
-	dsi_hw->irq_info->irq_buzy = false;
-
-	ctrl->mdss_util->register_irq(ctrl->dsi_hw);
-	ctrl->mdss_util->disable_irq(ctrl->dsi_hw);
-
+	dsi_host_private->irq_no = irq_no;
+	disable_irq(irq_no);
 	return 0;
 }
 
@@ -320,6 +291,11 @@ static int msm_dsi_wait4mdp_done(struct mdss_dsi_ctrl_pdata *ctrl)
 
 	if (rc == 0) {
 		pr_err("DSI wait 4 mdp done time out\n");
+#if defined(CONFIG_FB_MSM_MDSS_DSI_DBG)
+		dumpreg();
+		mdp3_dump_clk();
+		panic("DSI wait 4 mdp done time out");
+#endif
 		rc = -ETIME;
 	} else if (!IS_ERR_VALUE(rc)) {
 		rc = 0;
@@ -399,6 +375,7 @@ void msm_dsi_host_init(struct mipi_panel_info *pinfo)
 	unsigned char *ctrl_base = dsi_host_private->dsi_base;
 
 	pr_debug("msm_dsi_host_init\n");
+	pinfo->rgb_swap = DSI_RGB_SWAP_RGB;
 
 	if (pinfo->mode == DSI_VIDEO_MODE) {
 		data = 0;
@@ -558,11 +535,8 @@ void msm_dsi_controller_cfg(int enable)
 	if (readl_poll_timeout((ctrl_base + DSI_STATUS),
 				status,
 				((status & 0x02) == 0),
-				DSI_POLL_SLEEP_US, DSI_POLL_TIMEOUT_US)) {
+				DSI_POLL_SLEEP_US, DSI_POLL_TIMEOUT_US))
 		pr_err("%s: DSI status=%x failed\n", __func__, status);
-		pr_err("%s: Doing sw reset\n", __func__);
-		msm_dsi_sw_reset();
-	}
 
 	/* Check for x_HS_FIFO_EMPTY */
 	if (readl_poll_timeout((ctrl_base + DSI_FIFO_STATUS),
@@ -599,20 +573,15 @@ void msm_dsi_op_mode_config(int mode, struct mdss_panel_data *pdata)
 	pr_debug("msm_dsi_op_mode_config\n");
 
 	dsi_ctrl = MIPI_INP(ctrl_base + DSI_CTRL);
+	/*If Video enabled, Keep Video and Cmd mode ON */
 
-	if (dsi_ctrl & DSI_VIDEO_MODE_EN)
-		dsi_ctrl &= ~(DSI_CMD_MODE_EN|DSI_EN);
+
+	dsi_ctrl &= ~0x06;
+
+	if (mode == DSI_VIDEO_MODE)
+		dsi_ctrl |= 0x02;
 	else
-		dsi_ctrl &= ~(DSI_CMD_MODE_EN|DSI_VIDEO_MODE_EN|DSI_EN);
-
-	if (mode == DSI_VIDEO_MODE) {
-		dsi_ctrl |= (DSI_VIDEO_MODE_EN|DSI_EN);
-	} else {
-		dsi_ctrl |= (DSI_CMD_MODE_EN|DSI_EN);
-		/* For Video mode panel, keep Video and Cmd mode ON */
-		if (pdata->panel_info.type == MIPI_VIDEO_PANEL)
-			dsi_ctrl |= DSI_VIDEO_MODE_EN;
-	}
+		dsi_ctrl |= 0x04;
 
 	pr_debug("%s: dsi_ctrl=%x\n", __func__, dsi_ctrl);
 
@@ -627,6 +596,19 @@ int msm_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	unsigned long size, addr;
 	unsigned char *ctrl_base = dsi_host_private->dsi_base;
 	unsigned long flag;
+
+#if defined(CONFIG_DSI_HOST_DEBUG)
+	int i = 0;
+	char *bp;
+
+	bp = tp->data;
+
+	printk("%s: ", __func__);
+	for (i = 0; i < tp->len; i++)
+		printk("%02X ", *bp++);
+
+	printk("\n");
+#endif
 
 	len = ALIGN(tp->len, 4);
 	size = ALIGN(tp->len, SZ_4K);
@@ -657,6 +639,10 @@ int msm_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	rc = wait_for_completion_timeout(&ctrl->dma_comp,
 				msecs_to_jiffies(DSI_DMA_CMD_TIMEOUT_MS));
 	if (rc == 0) {
+#if defined(CONFIG_FB_MSM_MDSS_DSI_DBG)
+		dumpreg();
+		mdp3_dump_clk();
+#endif
 		pr_err("DSI command transaction time out\n");
 		rc = -ETIME;
 	} else if (!IS_ERR_VALUE(rc)) {
@@ -991,39 +977,24 @@ int msm_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 		return ret;
 	}
 
-	if (from_mdp)	/* from mdp kickoff */
-		mutex_lock(&ctrl->cmd_mutex);
+	mutex_lock(&ctrl->cmd_mutex);
 	req = mdss_dsi_cmdlist_get(ctrl);
 
 	if (!req) {
 		mutex_unlock(&ctrl->cmd_mutex);
 		return ret;
 	}
-	/*
-	 * mdss interrupt is generated in mdp core clock domain
-	 * mdp clock need to be enabled to receive dsi interrupt
-	 * also, axi bus bandwidth need since dsi controller will
-	 * fetch dcs commands from axi bus
-	 */
-	mdp3_res_update(1, 1, MDP3_CLIENT_DMA_P);
-	msm_dsi_clk_ctrl(&ctrl->panel_data, 1);
 
-	if (0 == (req->flags & CMD_REQ_LP_MODE))
-		dsi_set_tx_power_mode(0);
+	msm_dsi_clk_ctrl(&ctrl->panel_data, 1);
 
 	if (req->flags & CMD_REQ_RX)
 		msm_dsi_cmdlist_rx(ctrl, req);
 	else
 		msm_dsi_cmdlist_tx(ctrl, req);
 
-	if (0 == (req->flags & CMD_REQ_LP_MODE))
-		dsi_set_tx_power_mode(1);
-
 	msm_dsi_clk_ctrl(&ctrl->panel_data, 0);
-	mdp3_res_update(0, 1, MDP3_CLIENT_DMA_P);
 
-	if (from_mdp)	/* from mdp kickoff */
-		mutex_unlock(&ctrl->cmd_mutex);
+	mutex_unlock(&ctrl->cmd_mutex);
 	return 0;
 }
 
@@ -1078,7 +1049,7 @@ static int msm_dsi_cal_clk_rate(struct mdss_panel_data *pdata,
 
 static int msm_dsi_on(struct mdss_panel_data *pdata)
 {
-	int ret = 0, i;
+	int ret = 0;
 	u32 clk_rate;
 	struct mdss_panel_info *pinfo;
 	struct mipi_panel_info *mipi;
@@ -1098,18 +1069,13 @@ static int msm_dsi_on(struct mdss_panel_data *pdata)
 
 	mutex_lock(&ctrl_pdata->mutex);
 
-
-	if (!pdata->panel_info.dynamic_switch_pending) {
-		for (i = 0; !ret && (i < DSI_MAX_PM); i++) {
-			ret = msm_dss_enable_vreg(
-				ctrl_pdata->power_data[i].vreg_config,
-				ctrl_pdata->power_data[i].num_vreg, 1);
-			if (ret) {
-				pr_err("%s: failed to enable vregs for %s\n",
-					__func__, __mdss_dsi_pm_name(i));
-				goto error_vreg;
-			}
-		}
+	ret = msm_dss_enable_vreg(
+		ctrl_pdata->power_data.vreg_config,
+		ctrl_pdata->power_data.num_vreg, 1);
+	if (ret) {
+		pr_err("%s: DSI power on failed\n", __func__);
+		mutex_unlock(&ctrl_pdata->mutex);
+		return ret;
 	}
 
 	msm_dsi_ahb_ctrl(1);
@@ -1198,22 +1164,14 @@ static int msm_dsi_on(struct mdss_panel_data *pdata)
 	msm_dsi_set_irq(ctrl_pdata, DSI_INTR_ERROR_MASK);
 	dsi_host_private->clk_count = 1;
 	dsi_host_private->dsi_on = 1;
-
-error_vreg:
-	if (ret) {
-		for (; i >= 0; i--)
-			msm_dss_enable_vreg(
-				ctrl_pdata->power_data[i].vreg_config,
-				ctrl_pdata->power_data[i].num_vreg, 0);
-	}
-
 	mutex_unlock(&ctrl_pdata->mutex);
+
 	return ret;
 }
 
 static int msm_dsi_off(struct mdss_panel_data *pdata)
 {
-	int ret = 0, i;
+	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 
 	if (pdata == NULL) {
@@ -1235,15 +1193,11 @@ static int msm_dsi_off(struct mdss_panel_data *pdata)
 	msm_dsi_phy_off(dsi_host_private->dsi_base);
 	msm_dsi_ahb_ctrl(0);
 
-	if (!pdata->panel_info.dynamic_switch_pending) {
-		for (i = DSI_MAX_PM - 1; i >= 0; i--) {
-			ret = msm_dss_enable_vreg(
-				ctrl_pdata->power_data[i].vreg_config,
-				ctrl_pdata->power_data[i].num_vreg, 0);
-			if (ret)
-				pr_err("%s: failed to disable vregs for %s\n",
-					__func__, __mdss_dsi_pm_name(i));
-		}
+	ret = msm_dss_enable_vreg(
+		ctrl_pdata->power_data.vreg_config,
+		ctrl_pdata->power_data.num_vreg, 0);
+	if (ret) {
+		pr_err("%s: Panel power off failed\n", __func__);
 	}
 	dsi_host_private->clk_count = 0;
 	dsi_host_private->dsi_on = 0;
@@ -1256,7 +1210,7 @@ static int msm_dsi_off(struct mdss_panel_data *pdata)
 static int msm_dsi_cont_on(struct mdss_panel_data *pdata)
 {
 	struct mdss_panel_info *pinfo;
-	int ret = 0, i;
+	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 
 	if (pdata == NULL) {
@@ -1273,20 +1227,11 @@ static int msm_dsi_cont_on(struct mdss_panel_data *pdata)
 
 	pinfo = &pdata->panel_info;
 	mutex_lock(&ctrl_pdata->mutex);
-	for (i = 0; !ret && (i < DSI_MAX_PM); i++) {
-		ret = msm_dss_enable_vreg(
-			ctrl_pdata->power_data[i].vreg_config,
-			ctrl_pdata->power_data[i].num_vreg, 1);
-		if (ret) {
-			pr_err("%s: failed to enable vregs for %s\n",
-				__func__, __mdss_dsi_pm_name(i));
-			goto error_vreg;
-		}
-	}
-	pinfo->panel_power_state = MDSS_PANEL_POWER_ON;
-	ret = mdss_dsi_panel_reset(pdata, 1);
+	ret = msm_dss_enable_vreg(
+		ctrl_pdata->power_data.vreg_config,
+		ctrl_pdata->power_data.num_vreg, 1);
 	if (ret) {
-		pr_err("%s: Panel reset failed\n", __func__);
+		pr_err("%s: DSI power on failed\n", __func__);
 		mutex_unlock(&ctrl_pdata->mutex);
 		return ret;
 	}
@@ -1297,96 +1242,11 @@ static int msm_dsi_cont_on(struct mdss_panel_data *pdata)
 	msm_dsi_set_irq(ctrl_pdata, DSI_INTR_ERROR_MASK);
 	dsi_host_private->clk_count = 1;
 	dsi_host_private->dsi_on = 1;
-
-error_vreg:
-	if (ret) {
-		for (; i >= 0; i--)
-			msm_dss_enable_vreg(
-				ctrl_pdata->power_data[i].vreg_config,
-				ctrl_pdata->power_data[i].num_vreg, 0);
-	}
-
 	mutex_unlock(&ctrl_pdata->mutex);
-	return ret;
+	return 0;
 }
 
-static int msm_dsi_read_status(struct mdss_dsi_ctrl_pdata *ctrl)
-{
-	struct dcs_cmd_req cmdreq;
-
-	memset(&cmdreq, 0, sizeof(cmdreq));
-	cmdreq.cmds = ctrl->status_cmds.cmds;
-	cmdreq.cmds_cnt = ctrl->status_cmds.cmd_cnt;
-	cmdreq.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL | CMD_REQ_RX;
-	cmdreq.rlen = 1;
-	cmdreq.cb = NULL;
-	cmdreq.rbuf = ctrl->status_buf.data;
-
-	return mdss_dsi_cmdlist_put(ctrl, &cmdreq);
-}
-
-
-/**
- * msm_dsi_reg_status_check() - Check dsi panel status through reg read
- * @ctrl_pdata: pointer to the dsi controller structure
- *
- * This function can be used to check the panel status through reading the
- * status register from the panel.
- *
- * Return: positive value if the panel is in good state, negative value or
- * zero otherwise.
- */
-int msm_dsi_reg_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
-{
-	int ret = 0;
-
-	if (ctrl_pdata == NULL) {
-		pr_err("%s: Invalid input data\n", __func__);
-		return 0;
-	}
-
-	pr_debug("%s: Checking Register status\n", __func__);
-
-	msm_dsi_clk_ctrl(&ctrl_pdata->panel_data, 1);
-
-	if (ctrl_pdata->status_cmds.link_state == DSI_HS_MODE)
-		dsi_set_tx_power_mode(0);
-
-	ret = msm_dsi_read_status(ctrl_pdata);
-
-	if (ctrl_pdata->status_cmds.link_state == DSI_HS_MODE)
-		dsi_set_tx_power_mode(1);
-
-	if (ret == 0) {
-		if (ctrl_pdata->status_buf.data[0] !=
-						ctrl_pdata->status_value) {
-			pr_err("%s: Read back value from panel is incorrect\n",
-								__func__);
-			ret = -EINVAL;
-		} else {
-			ret = 1;
-		}
-	} else {
-		pr_err("%s: Read status register returned error\n", __func__);
-	}
-
-	msm_dsi_clk_ctrl(&ctrl_pdata->panel_data, 0);
-	pr_debug("%s: Read register done with ret: %d\n", __func__, ret);
-
-	return ret;
-}
-
-/**
- * msm_dsi_bta_status_check() - Check dsi panel status through bta check
- * @ctrl_pdata: pointer to the dsi controller structure
- *
- * This function can be used to check status of the panel using bta check
- * for the panel.
- *
- * Return: positive value if the panel is in good state, negative value or
- * zero otherwise.
- */
-static int msm_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+int msm_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int ret = 0;
 
@@ -1571,16 +1431,13 @@ static int msm_dsi_clk_ctrl(struct mdss_panel_data *pdata, int enable)
 						&byteclk_rate, &pclk_rate);
 			msm_dsi_clk_set_rate(DSI_ESC_CLK_RATE, dsiclk_rate,
 						byteclk_rate, pclk_rate);
-			msm_dsi_prepare_clocks();
 			msm_dsi_clk_enable();
 		}
 	} else {
 		dsi_host_private->clk_count--;
 		if (dsi_host_private->clk_count == 0) {
-			msm_dsi_clear_irq(ctrl_pdata, ctrl_pdata->dsi_irq_mask);
 			msm_dsi_clk_set_rate(DSI_ESC_CLK_RATE, 0, 0, 0);
 			msm_dsi_clk_disable();
-			msm_dsi_unprepare_clocks();
 			msm_dsi_ahb_ctrl(0);
 		}
 	}
@@ -1601,22 +1458,12 @@ void msm_dsi_ctrl_init(struct mdss_dsi_ctrl_pdata *ctrl)
 	complete(&ctrl->mdp_comp);
 	dsi_buf_alloc(&ctrl->tx_buf, SZ_4K);
 	dsi_buf_alloc(&ctrl->rx_buf, SZ_4K);
-	dsi_buf_alloc(&ctrl->status_buf, SZ_4K);
 	ctrl->cmdlist_commit = msm_dsi_cmdlist_commit;
 	ctrl->panel_mode = ctrl->panel_data.panel_info.mipi.mode;
-
-	if (ctrl->status_mode == ESD_REG)
-		ctrl->check_status = msm_dsi_reg_status_check;
-	else if (ctrl->status_mode == ESD_BTA)
-		ctrl->check_status = msm_dsi_bta_status_check;
-
-	if (ctrl->status_mode == ESD_MAX) {
-		pr_err("%s: Using default BTA for ESD check\n", __func__);
-		ctrl->check_status = msm_dsi_bta_status_check;
-	}
+	ctrl->check_status = msm_dsi_bta_status_check;
 }
 
-static int msm_dsi_probe(struct platform_device *pdev)
+static int __devinit msm_dsi_probe(struct platform_device *pdev)
 {
 	struct dsi_interface intf;
 	char panel_cfg[MDSS_MAX_PANEL_LEN];
@@ -1625,7 +1472,6 @@ static int msm_dsi_probe(struct platform_device *pdev)
 	struct device_node *dsi_pan_node = NULL;
 	bool cmd_cfg_cont_splash = false;
 	struct resource *mdss_dsi_mres;
-	int i;
 
 	pr_debug("%s\n", __func__);
 
@@ -1652,12 +1498,6 @@ static int msm_dsi_probe(struct platform_device *pdev)
 		platform_set_drvdata(pdev, ctrl_pdata);
 	}
 
-	ctrl_pdata->mdss_util = mdss_get_util_intf();
-	if (mdp3_res->mdss_util == NULL) {
-		pr_err("Failed to get mdss utility functions\n");
-		return -ENODEV;
-	}
-
 	mdss_dsi_mres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mdss_dsi_mres) {
 		pr_err("%s:%d unable to get the MDSS reg resources",
@@ -1674,6 +1514,9 @@ static int msm_dsi_probe(struct platform_device *pdev)
 			rc = -ENOMEM;
 			goto error_io_resource;
 		}
+#if defined(CONFIG_FB_MSM_MDSS_DSI_DBG)
+		dsi_ctrl_base = dsi_host_private->dsi_base;
+#endif
 	}
 
 	mdss_dsi_mres = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -1682,6 +1525,14 @@ static int msm_dsi_probe(struct platform_device *pdev)
 							__func__, __LINE__);
 		rc = -ENODEV;
 		goto error_irq_resource;
+	} else {
+		rc = msm_dsi_irq_init(&pdev->dev, mdss_dsi_mres->start,
+					ctrl_pdata);
+		if (rc) {
+			dev_err(&pdev->dev, "%s: failed to init irq, rc=%d\n",
+								__func__, rc);
+			goto error_irq_resource;
+		}
 	}
 
 	rc = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
@@ -1721,13 +1572,11 @@ static int msm_dsi_probe(struct platform_device *pdev)
 		goto error_pan_node;
 	}
 
-	for (i = 0;  i < DSI_MAX_PM; i++) {
-		rc = msm_dsi_io_init(pdev, &(ctrl_pdata->power_data[i]));
-		if (rc) {
-			dev_err(&pdev->dev, "%s: failed to init IO for %s\n",
-				__func__, __mdss_dsi_pm_name(i));
-			goto error_io_init;
-		}
+	rc = msm_dsi_io_init(pdev, &(ctrl_pdata->power_data));
+	if (rc) {
+		dev_err(&pdev->dev, "%s: failed to init DSI IO, rc=%d\n",
+								__func__, rc);
+		goto error_io_init;
 	}
 
 	pr_debug("%s: Dsi Ctrl->0 initialized\n", __func__);
@@ -1746,14 +1595,6 @@ static int msm_dsi_probe(struct platform_device *pdev)
 
 	msm_dsi_ctrl_init(ctrl_pdata);
 
-	rc = msm_dsi_irq_init(&pdev->dev, mdss_dsi_mres->start,
-					   ctrl_pdata);
-	if (rc) {
-		dev_err(&pdev->dev, "%s: failed to init irq, rc=%d\n",
-			__func__, rc);
-		goto error_irq_init;
-	}
-
 	rc = dsi_panel_device_register_v2(pdev, ctrl_pdata);
 	if (rc) {
 		pr_err("%s: dsi panel dev reg failed\n", __func__);
@@ -1762,11 +1603,7 @@ static int msm_dsi_probe(struct platform_device *pdev)
 	pr_debug("%s success\n", __func__);
 	return 0;
 error_device_register:
-	kfree(ctrl_pdata->dsi_hw->irq_info);
-	kfree(ctrl_pdata->dsi_hw);
-error_irq_init:
-	for (i = DSI_MAX_PM - 1; i >= 0; i--)
-		msm_dsi_io_deinit(pdev, &(ctrl_pdata->power_data[i]));
+	msm_dsi_io_deinit(pdev, &(ctrl_pdata->power_data));
 error_io_init:
 	dsi_ctrl_config_deinit(pdev, ctrl_pdata);
 error_pan_node:
@@ -1786,10 +1623,8 @@ error_no_mem:
 	return rc;
 }
 
-static int msm_dsi_remove(struct platform_device *pdev)
+static int __devexit msm_dsi_remove(struct platform_device *pdev)
 {
-	int i;
-
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = platform_get_drvdata(pdev);
 	if (!ctrl_pdata) {
 		pr_err("%s: no driver data\n", __func__);
@@ -1797,8 +1632,7 @@ static int msm_dsi_remove(struct platform_device *pdev)
 	}
 
 	msm_dsi_clear_irq(ctrl_pdata, ctrl_pdata->dsi_irq_mask);
-	for (i = DSI_MAX_PM - 1; i >= 0; i--)
-		msm_dsi_io_deinit(pdev, &(ctrl_pdata->power_data[i]));
+	msm_dsi_io_deinit(pdev, &(ctrl_pdata->power_data));
 	dsi_ctrl_config_deinit(pdev, ctrl_pdata);
 	iounmap(dsi_host_private->dsi_base);
 	dsi_host_private->dsi_base = NULL;
@@ -1816,7 +1650,7 @@ MODULE_DEVICE_TABLE(of, msm_dsi_v2_dt_match);
 
 static struct platform_driver msm_dsi_v2_driver = {
 	.probe = msm_dsi_probe,
-	.remove = msm_dsi_remove,
+	.remove = __devexit_p(msm_dsi_remove),
 	.shutdown = NULL,
 	.driver = {
 		.name = "msm_dsi_v2",

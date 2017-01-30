@@ -70,7 +70,7 @@ static const struct fb_videomode grvga_modedb[] = {
     }
  };
 
-static struct fb_fix_screeninfo grvga_fix = {
+static struct fb_fix_screeninfo grvga_fix __devinitdata = {
 	.id =		"AG SVGACTRL",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =       FB_VISUAL_PSEUDOCOLOR,
@@ -267,8 +267,8 @@ static struct fb_ops grvga_ops = {
 	.fb_imageblit	= cfb_imageblit
 };
 
-static int grvga_parse_custom(char *options,
-			      struct fb_var_screeninfo *screendata)
+static int __devinit grvga_parse_custom(char *options,
+				     struct fb_var_screeninfo *screendata)
 {
 	char *this_opt;
 	int count = 0;
@@ -329,7 +329,7 @@ static int grvga_parse_custom(char *options,
 	return 0;
 }
 
-static int grvga_probe(struct platform_device *dev)
+static int __devinit grvga_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	int retval = -ENOMEM;
@@ -354,7 +354,7 @@ static int grvga_probe(struct platform_device *dev)
 	 */
 	if (fb_get_options("grvga", &options)) {
 		retval = -ENODEV;
-		goto free_fb;
+		goto err;
 	}
 
 	if (!options || !*options)
@@ -370,7 +370,7 @@ static int grvga_probe(struct platform_device *dev)
 			if (grvga_parse_custom(this_opt, &info->var) < 0) {
 				dev_err(&dev->dev, "Failed to parse custom mode (%s).\n", this_opt);
 				retval = -EINVAL;
-				goto free_fb;
+				goto err1;
 			}
 		} else if (!strncmp(this_opt, "addr", 4))
 			grvga_fix_addr = simple_strtoul(this_opt + 5, NULL, 16);
@@ -387,11 +387,10 @@ static int grvga_probe(struct platform_device *dev)
 	info->flags = FBINFO_DEFAULT | FBINFO_PARTIAL_PAN_OK | FBINFO_HWACCEL_YPAN;
 	info->fix.smem_len = grvga_mem_size;
 
-	if (!devm_request_mem_region(&dev->dev, dev->resource[0].start,
-		    resource_size(&dev->resource[0]), "grlib-svgactrl regs")) {
+	if (!request_mem_region(dev->resource[0].start, resource_size(&dev->resource[0]), "grlib-svgactrl regs")) {
 		dev_err(&dev->dev, "registers already mapped\n");
 		retval = -EBUSY;
-		goto free_fb;
+		goto err;
 	}
 
 	par->regs = of_ioremap(&dev->resource[0], 0,
@@ -401,14 +400,14 @@ static int grvga_probe(struct platform_device *dev)
 	if (!par->regs) {
 		dev_err(&dev->dev, "failed to map registers\n");
 		retval = -ENOMEM;
-		goto free_fb;
+		goto err1;
 	}
 
 	retval = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (retval < 0) {
 		dev_err(&dev->dev, "failed to allocate mem with fb_alloc_cmap\n");
 		retval = -ENOMEM;
-		goto unmap_regs;
+		goto err2;
 	}
 
 	if (mode_opt) {
@@ -416,7 +415,7 @@ static int grvga_probe(struct platform_device *dev)
 				      grvga_modedb, sizeof(grvga_modedb), &grvga_modedb[0], 8);
 		if (!retval || retval == 4) {
 			retval = -EINVAL;
-			goto dealloc_cmap;
+			goto err3;
 		}
 	}
 
@@ -428,11 +427,10 @@ static int grvga_probe(struct platform_device *dev)
 
 		physical_start = grvga_fix_addr;
 
-		if (!devm_request_mem_region(&dev->dev, physical_start,
-					     grvga_mem_size, dev->name)) {
+		if (!request_mem_region(physical_start, grvga_mem_size, dev->name)) {
 			dev_err(&dev->dev, "failed to request memory region\n");
 			retval = -ENOMEM;
-			goto dealloc_cmap;
+			goto err3;
 		}
 
 		virtual_start = (unsigned long) ioremap(physical_start, grvga_mem_size);
@@ -440,7 +438,7 @@ static int grvga_probe(struct platform_device *dev)
 		if (!virtual_start) {
 			dev_err(&dev->dev, "error mapping framebuffer memory\n");
 			retval = -ENOMEM;
-			goto dealloc_cmap;
+			goto err4;
 		}
 	} else {	/* Allocate frambuffer memory */
 
@@ -453,7 +451,7 @@ static int grvga_probe(struct platform_device *dev)
 				"unable to allocate framebuffer memory (%lu bytes)\n",
 				grvga_mem_size);
 			retval = -ENOMEM;
-			goto dealloc_cmap;
+			goto err3;
 		}
 
 		physical_start = dma_map_single(&dev->dev, (void *)virtual_start, grvga_mem_size, DMA_TO_DEVICE);
@@ -486,7 +484,7 @@ static int grvga_probe(struct platform_device *dev)
 	retval = register_framebuffer(info);
 	if (retval < 0) {
 		dev_err(&dev->dev, "failed to register framebuffer\n");
-		goto free_mem;
+		goto err4;
 	}
 
 	__raw_writel(physical_start, &par->regs->fb_pos);
@@ -495,24 +493,27 @@ static int grvga_probe(struct platform_device *dev)
 
 	return 0;
 
-free_mem:
+err4:
 	dev_set_drvdata(&dev->dev, NULL);
-	if (grvga_fix_addr)
+	if (grvga_fix_addr) {
+		release_mem_region(physical_start, grvga_mem_size);
 		iounmap((void *)virtual_start);
-	else
+	} else
 		kfree((void *)virtual_start);
-dealloc_cmap:
+err3:
 	fb_dealloc_cmap(&info->cmap);
-unmap_regs:
+err2:
 	of_iounmap(&dev->resource[0], par->regs,
 		   resource_size(&dev->resource[0]));
-free_fb:
+err1:
+	release_mem_region(dev->resource[0].start, resource_size(&dev->resource[0]));
+err:
 	framebuffer_release(info);
 
 	return retval;
 }
 
-static int grvga_remove(struct platform_device *device)
+static int __devexit grvga_remove(struct platform_device *device)
 {
 	struct fb_info *info = dev_get_drvdata(&device->dev);
 	struct grvga_par *par = info->par;
@@ -523,10 +524,12 @@ static int grvga_remove(struct platform_device *device)
 
 		of_iounmap(&device->resource[0], par->regs,
 			   resource_size(&device->resource[0]));
+		release_mem_region(device->resource[0].start, resource_size(&device->resource[0]));
 
-		if (!par->fb_alloced)
+		if (!par->fb_alloced) {
+			release_mem_region(info->fix.smem_start, info->fix.smem_len);
 			iounmap(info->screen_base);
-		else
+		} else
 			kfree((void *)info->screen_base);
 
 		framebuffer_release(info);
@@ -554,7 +557,7 @@ static struct platform_driver grvga_driver = {
 		.of_match_table = svgactrl_of_match,
 	},
 	.probe		= grvga_probe,
-	.remove		= grvga_remove,
+	.remove		= __devexit_p(grvga_remove),
 };
 
 

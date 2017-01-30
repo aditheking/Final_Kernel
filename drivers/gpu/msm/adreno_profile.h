@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,8 +27,7 @@ struct adreno_profile_assigns_list {
 	char name[25];
 	unsigned int groupid;
 	unsigned int countable;
-	unsigned int offset;    /* LO offset */
-	unsigned int offset_hi; /* HI offset */
+	unsigned int offset;   /* LO offset,  HI offset is +1 */
 };
 
 struct adreno_profile {
@@ -63,31 +62,30 @@ struct adreno_profile {
 						sizeof(unsigned int))
 
 #ifdef CONFIG_DEBUG_FS
-void adreno_profile_init(struct adreno_device *adreno_dev);
-void adreno_profile_close(struct adreno_device *adreno_dev);
-int adreno_profile_process_results(struct  adreno_device *adreno_dev);
-void adreno_profile_preib_processing(struct adreno_device *adreno_dev,
-		struct adreno_context *drawctxt, unsigned int *cmd_flags,
-		unsigned int **rbptr);
-void adreno_profile_postib_processing(struct  adreno_device *adreno_dev,
-		unsigned int *cmd_flags, unsigned int **rbptr);
+void adreno_profile_init(struct kgsl_device *device);
+void adreno_profile_close(struct kgsl_device *device);
+int adreno_profile_process_results(struct kgsl_device *device);
+void adreno_profile_preib_processing(struct kgsl_device *device,
+		unsigned int context_id, unsigned int *cmd_flags,
+		unsigned int **rbptr, unsigned int *cmds_gpu);
+void adreno_profile_postib_processing(struct kgsl_device *device,
+		unsigned int *cmd_flags, unsigned int **rbptr,
+		unsigned int *cmds_gpu);
 #else
-static inline void adreno_profile_init(struct adreno_device *adreno_dev) { }
-static inline void adreno_profile_close(struct adreno_device *adreno_dev) { }
-static inline int adreno_profile_process_results(
-		struct adreno_device *adreno_dev)
+static inline void adreno_profile_init(struct kgsl_device *device) { }
+static inline void adreno_profile_close(struct kgsl_device *device) { }
+static inline int adreno_profile_process_results(struct kgsl_device *device)
 {
 	return 0;
 }
 
-static inline void adreno_profile_preib_processing(
-		struct adreno_device *adreno_dev,
-		struct adreno_context *drawctxt, unsigned int *cmd_flags,
-		unsigned int **rbptr) { }
+static inline void adreno_profile_preib_processing(struct kgsl_device *device,
+		unsigned int context_id, unsigned int *cmd_flags,
+		unsigned int **rbptr, unsigned int *cmds_gpu) { }
 
-static inline void adreno_profile_postib_processing(
-		struct adreno_device *adreno_dev,
-		unsigned int *cmd_flags, unsigned int **rbptr) { }
+static inline void adreno_profile_postib_processing(struct kgsl_device *device,
+		unsigned int *cmd_flags, unsigned int **rbptr,
+		unsigned int *cmds_gpu) { }
 #endif
 
 static inline bool adreno_profile_enabled(struct adreno_profile *profile)

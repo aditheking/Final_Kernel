@@ -29,10 +29,8 @@
 #include <linux/sched.h>
 #include <linux/backlight.h>
 #include <linux/fb.h>
-#include <linux/gpio.h>
 
 #include <video/omapdss.h>
-#include <video/omap-panel-data.h>
 
 #define MIPID_CMD_READ_DISP_ID		0x04
 #define MIPID_CMD_READ_RED		0x06
@@ -338,6 +336,8 @@ static int acx565akm_bl_update_status(struct backlight_device *dev)
 	r = 0;
 	if (md->has_bc)
 		acx565akm_set_brightness(md, level);
+	else if (md->dssdev->set_backlight)
+		r = md->dssdev->set_backlight(md->dssdev, level);
 	else
 		r = -ENODEV;
 
@@ -352,7 +352,7 @@ static int acx565akm_bl_get_intensity(struct backlight_device *dev)
 
 	dev_dbg(&dev->dev, "%s\n", __func__);
 
-	if (!md->has_bc)
+	if (!md->has_bc && md->dssdev->set_backlight == NULL)
 		return -ENODEV;
 
 	if (dev->props.fb_blank == FB_BLANK_UNBLANK &&
@@ -487,47 +487,24 @@ static struct omap_video_timings acx_panel_timings = {
 	.vfp		= 3,
 	.vsw		= 3,
 	.vbp		= 4,
-
-	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-
-	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
-	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 };
-
-static struct panel_acx565akm_data *get_panel_data(struct omap_dss_device *dssdev)
-{
-	return (struct panel_acx565akm_data *) dssdev->data;
-}
 
 static int acx_panel_probe(struct omap_dss_device *dssdev)
 {
 	int r;
 	struct acx565akm_device *md = &acx_dev;
-	struct panel_acx565akm_data *panel_data = get_panel_data(dssdev);
 	struct backlight_device *bldev;
 	int max_brightness, brightness;
 	struct backlight_properties props;
 
 	dev_dbg(&dssdev->dev, "%s\n", __func__);
-
-	if (!panel_data)
-		return -EINVAL;
-
+	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					OMAP_DSS_LCD_IHS;
 	/* FIXME AC bias ? */
 	dssdev->panel.timings = acx_panel_timings;
 
-	if (gpio_is_valid(panel_data->reset_gpio)) {
-		r = devm_gpio_request_one(&dssdev->dev, panel_data->reset_gpio,
-				GPIOF_OUT_INIT_LOW, "lcd reset");
-		if (r)
-			return r;
-	}
-
-	if (gpio_is_valid(panel_data->reset_gpio))
-		gpio_set_value(panel_data->reset_gpio, 1);
-
+	if (dssdev->platform_enable)
+		dssdev->platform_enable(dssdev);
 	/*
 	 * After reset we have to wait 5 msec before the first
 	 * command can be sent.
@@ -539,9 +516,8 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 	r = panel_detect(md);
 	if (r) {
 		dev_err(&dssdev->dev, "%s panel detect error\n", __func__);
-		if (!md->enabled && gpio_is_valid(panel_data->reset_gpio))
-			gpio_set_value(panel_data->reset_gpio, 0);
-
+		if (!md->enabled && dssdev->platform_disable)
+			dssdev->platform_disable(dssdev);
 		return r;
 	}
 
@@ -550,13 +526,12 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 	mutex_unlock(&acx_dev.mutex);
 
 	if (!md->enabled) {
-		if (gpio_is_valid(panel_data->reset_gpio))
-			gpio_set_value(panel_data->reset_gpio, 0);
+		if (dssdev->platform_disable)
+			dssdev->platform_disable(dssdev);
 	}
 
 	/*------- Backlight control --------*/
 
-	memset(&props, 0, sizeof(props));
 	props.fb_blank = FB_BLANK_UNBLANK;
 	props.power = FB_BLANK_UNBLANK;
 	props.type = BACKLIGHT_RAW;
@@ -575,10 +550,15 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 		md->cabc_mode = get_hw_cabc_mode(md);
 	}
 
-	max_brightness = 255;
+	if (md->has_bc)
+		max_brightness = 255;
+	else
+		max_brightness = dssdev->max_backlight_level;
 
 	if (md->has_bc)
 		brightness = acx565akm_get_actual_brightness(md);
+	else if (dssdev->get_backlight)
+		brightness = dssdev->get_backlight(dssdev);
 	else
 		brightness = 0;
 
@@ -604,7 +584,6 @@ static void acx_panel_remove(struct omap_dss_device *dssdev)
 static int acx_panel_power_on(struct omap_dss_device *dssdev)
 {
 	struct acx565akm_device *md = &acx_dev;
-	struct panel_acx565akm_data *panel_data = get_panel_data(dssdev);
 	int r;
 
 	dev_dbg(&dssdev->dev, "%s\n", __func__);
@@ -613,9 +592,6 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 		return 0;
 
 	mutex_lock(&md->mutex);
-
-	omapdss_sdi_set_timings(dssdev, &dssdev->panel.timings);
-	omapdss_sdi_set_datapairs(dssdev, dssdev->phy.sdi.datapairs);
 
 	r = omapdss_sdi_display_enable(dssdev);
 	if (r) {
@@ -626,8 +602,11 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 	/*FIXME tweak me */
 	msleep(50);
 
-	if (gpio_is_valid(panel_data->reset_gpio))
-		gpio_set_value(panel_data->reset_gpio, 1);
+	if (dssdev->platform_enable) {
+		r = dssdev->platform_enable(dssdev);
+		if (r)
+			goto fail;
+	}
 
 	if (md->enabled) {
 		dev_dbg(&md->spi->dev, "panel already enabled\n");
@@ -656,7 +635,8 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 	mutex_unlock(&md->mutex);
 
 	return acx565akm_bl_update_status(md->bl_dev);
-
+fail:
+	omapdss_sdi_display_disable(dssdev);
 fail_unlock:
 	mutex_unlock(&md->mutex);
 	return r;
@@ -665,7 +645,6 @@ fail_unlock:
 static void acx_panel_power_off(struct omap_dss_device *dssdev)
 {
 	struct acx565akm_device *md = &acx_dev;
-	struct panel_acx565akm_data *panel_data = get_panel_data(dssdev);
 
 	dev_dbg(&dssdev->dev, "%s\n", __func__);
 
@@ -689,8 +668,8 @@ static void acx_panel_power_off(struct omap_dss_device *dssdev)
 	 */
 	msleep(50);
 
-	if (gpio_is_valid(panel_data->reset_gpio))
-		gpio_set_value(panel_data->reset_gpio, 0);
+	if (dssdev->platform_disable)
+		dssdev->platform_disable(dssdev);
 
 	/* FIXME need to tweak this delay */
 	msleep(100);
@@ -721,12 +700,48 @@ static void acx_panel_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
+static int acx_panel_suspend(struct omap_dss_device *dssdev)
+{
+	dev_dbg(&dssdev->dev, "%s\n", __func__);
+	acx_panel_power_off(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
+	return 0;
+}
+
+static int acx_panel_resume(struct omap_dss_device *dssdev)
+{
+	int r;
+
+	dev_dbg(&dssdev->dev, "%s\n", __func__);
+	r = acx_panel_power_on(dssdev);
+	if (r)
+		return r;
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+	return 0;
+}
+
 static void acx_panel_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	omapdss_sdi_set_timings(dssdev, timings);
+	int r;
+
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+		omapdss_sdi_display_disable(dssdev);
 
 	dssdev->panel.timings = *timings;
+
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
+		r = omapdss_sdi_display_enable(dssdev);
+		if (r)
+			dev_err(&dssdev->dev, "%s enable failed\n", __func__);
+	}
+}
+
+static void acx_panel_get_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	*timings = dssdev->panel.timings;
 }
 
 static int acx_panel_check_timings(struct omap_dss_device *dssdev,
@@ -742,8 +757,11 @@ static struct omap_dss_driver acx_panel_driver = {
 
 	.enable		= acx_panel_enable,
 	.disable	= acx_panel_disable,
+	.suspend	= acx_panel_suspend,
+	.resume		= acx_panel_resume,
 
 	.set_timings	= acx_panel_set_timings,
+	.get_timings	= acx_panel_get_timings,
 	.check_timings	= acx_panel_check_timings,
 
 	.get_recommended_bpp = acx_get_recommended_bpp,
@@ -788,7 +806,7 @@ static struct spi_driver acx565akm_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= acx565akm_spi_probe,
-	.remove	= acx565akm_spi_remove,
+	.remove	= __devexit_p(acx565akm_spi_remove),
 };
 
 module_spi_driver(acx565akm_spi_driver);

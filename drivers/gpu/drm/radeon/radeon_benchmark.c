@@ -45,14 +45,20 @@ static int radeon_benchmark_do_move(struct radeon_device *rdev, unsigned size,
 	for (i = 0; i < n; i++) {
 		switch (flag) {
 		case RADEON_BENCHMARK_COPY_DMA:
+			r = radeon_fence_create(rdev, &fence, radeon_copy_dma_ring_index(rdev));
+			if (r)
+				return r;
 			r = radeon_copy_dma(rdev, saddr, daddr,
 					    size / RADEON_GPU_PAGE_SIZE,
-					    &fence);
+					    fence);
 			break;
 		case RADEON_BENCHMARK_COPY_BLIT:
+			r = radeon_fence_create(rdev, &fence, radeon_copy_blit_ring_index(rdev));
+			if (r)
+				return r;
 			r = radeon_copy_blit(rdev, saddr, daddr,
 					     size / RADEON_GPU_PAGE_SIZE,
-					     &fence);
+					     fence);
 			break;
 		default:
 			DRM_ERROR("Unknown copy method\n");
@@ -97,7 +103,7 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 	int time;
 
 	n = RADEON_BENCHMARK_ITERATIONS;
-	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, sdomain, NULL, &sobj);
+	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, sdomain, &sobj);
 	if (r) {
 		goto out_cleanup;
 	}
@@ -109,7 +115,7 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 	if (r) {
 		goto out_cleanup;
 	}
-	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, ddomain, NULL, &dobj);
+	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, ddomain, &dobj);
 	if (r) {
 		goto out_cleanup;
 	}
@@ -122,7 +128,10 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 		goto out_cleanup;
 	}
 
-	if (rdev->asic->copy.dma) {
+	/* r100 doesn't have dma engine so skip the test */
+	/* also, VRAM-to-VRAM test doesn't make much sense for DMA */
+	/* skip it as well if domains are the same */
+	if ((rdev->asic->copy.dma) && (sdomain != ddomain)) {
 		time = radeon_benchmark_do_move(rdev, size, saddr, daddr,
 						RADEON_BENCHMARK_COPY_DMA, n);
 		if (time < 0)
@@ -132,15 +141,13 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 						     sdomain, ddomain, "dma");
 	}
 
-	if (rdev->asic->copy.blit) {
-		time = radeon_benchmark_do_move(rdev, size, saddr, daddr,
-						RADEON_BENCHMARK_COPY_BLIT, n);
-		if (time < 0)
-			goto out_cleanup;
-		if (time > 0)
-			radeon_benchmark_log_results(n, size, time,
-						     sdomain, ddomain, "blit");
-	}
+	time = radeon_benchmark_do_move(rdev, size, saddr, daddr,
+					RADEON_BENCHMARK_COPY_BLIT, n);
+	if (time < 0)
+		goto out_cleanup;
+	if (time > 0)
+		radeon_benchmark_log_results(n, size, time,
+					     sdomain, ddomain, "blit");
 
 out_cleanup:
 	if (sobj) {

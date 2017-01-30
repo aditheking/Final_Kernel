@@ -206,10 +206,10 @@ static struct fb_ops hpfb_ops = {
 #define HPFB_FBOMSB	0x5d	/* Frame buffer offset		*/
 #define HPFB_FBOLSB	0x5f
 
-static int hpfb_init_one(unsigned long phys_base, unsigned long virt_base)
+static int __devinit hpfb_init_one(unsigned long phys_base,
+				   unsigned long virt_base)
 {
 	unsigned long fboff, fb_width, fb_height, fb_start;
-	int ret;
 
 	fb_regs = virt_base;
 	fboff = (in_8(fb_regs + HPFB_FBOMSB) << 8) | in_8(fb_regs + HPFB_FBOLSB);
@@ -290,29 +290,19 @@ static int hpfb_init_one(unsigned long phys_base, unsigned long virt_base)
 	fb_info.var   = hpfb_defined;
 	fb_info.screen_base = (char *)fb_start;
 
-	ret = fb_alloc_cmap(&fb_info.cmap, 1 << hpfb_defined.bits_per_pixel, 0);
-	if (ret < 0)
-		goto unmap_screen_base;
+	fb_alloc_cmap(&fb_info.cmap, 1 << hpfb_defined.bits_per_pixel, 0);
 
-	ret = register_framebuffer(&fb_info);
-	if (ret < 0)
-		goto dealloc_cmap;
+	if (register_framebuffer(&fb_info) < 0) {
+		fb_dealloc_cmap(&fb_info.cmap);
+		iounmap(fb_info.screen_base);
+		fb_info.screen_base = NULL;
+		return 1;
+	}
 
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
 	       fb_info.node, fb_info.fix.id);
 
 	return 0;
-
-dealloc_cmap:
-	fb_dealloc_cmap(&fb_info.cmap);
-
-unmap_screen_base:
-	if (fb_info.screen_base) {
-		iounmap(fb_info.screen_base);
-		fb_info.screen_base = NULL;
-	}
-
-	return ret;
 }
 
 /* 
@@ -326,7 +316,7 @@ unmap_screen_base:
 /* 
  * Initialise the framebuffer
  */
-static int hpfb_dio_probe(struct dio_dev *d, const struct dio_device_id *ent)
+static int __devinit hpfb_dio_probe(struct dio_dev * d, const struct dio_device_id * ent)
 {
 	unsigned long paddr, vaddr;
 
@@ -349,15 +339,12 @@ static int hpfb_dio_probe(struct dio_dev *d, const struct dio_device_id *ent)
 	return 0;
 }
 
-static void hpfb_remove_one(struct dio_dev *d)
+static void __devexit hpfb_remove_one(struct dio_dev *d)
 {
 	unregister_framebuffer(&fb_info);
 	if (d->scode >= DIOII_SCBASE)
 		iounmap((void *)fb_regs);
 	release_mem_region(d->resource.start, resource_size(&d->resource));
-	fb_dealloc_cmap(&fb_info.cmap);
-	if (fb_info.screen_base)
-		iounmap(fb_info.screen_base);
 }
 
 static struct dio_device_id hpfb_dio_tbl[] = {
@@ -372,7 +359,7 @@ static struct dio_driver hpfb_driver = {
     .name      = "hpfb",
     .id_table  = hpfb_dio_tbl,
     .probe     = hpfb_dio_probe,
-    .remove    = hpfb_remove_one,
+    .remove    = __devexit_p(hpfb_remove_one),
 };
 
 int __init hpfb_init(void)

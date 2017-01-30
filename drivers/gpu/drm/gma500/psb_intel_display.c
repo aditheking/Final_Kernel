@@ -50,41 +50,119 @@ struct psb_intel_p2_t {
 	int p2_slow, p2_fast;
 };
 
+#define INTEL_P2_NUM		      2
+
 struct psb_intel_limit_t {
 	struct psb_intel_range_t dot, vco, n, m, m1, m2, p, p1;
 	struct psb_intel_p2_t p2;
 };
 
-#define INTEL_LIMIT_I9XX_SDVO_DAC   0
-#define INTEL_LIMIT_I9XX_LVDS	    1
+#define I8XX_DOT_MIN		  25000
+#define I8XX_DOT_MAX		 350000
+#define I8XX_VCO_MIN		 930000
+#define I8XX_VCO_MAX		1400000
+#define I8XX_N_MIN		      3
+#define I8XX_N_MAX		     16
+#define I8XX_M_MIN		     96
+#define I8XX_M_MAX		    140
+#define I8XX_M1_MIN		     18
+#define I8XX_M1_MAX		     26
+#define I8XX_M2_MIN		      6
+#define I8XX_M2_MAX		     16
+#define I8XX_P_MIN		      4
+#define I8XX_P_MAX		    128
+#define I8XX_P1_MIN		      2
+#define I8XX_P1_MAX		     33
+#define I8XX_P1_LVDS_MIN	      1
+#define I8XX_P1_LVDS_MAX	      6
+#define I8XX_P2_SLOW		      4
+#define I8XX_P2_FAST		      2
+#define I8XX_P2_LVDS_SLOW	      14
+#define I8XX_P2_LVDS_FAST	      14	/* No fast option */
+#define I8XX_P2_SLOW_LIMIT	 165000
+
+#define I9XX_DOT_MIN		  20000
+#define I9XX_DOT_MAX		 400000
+#define I9XX_VCO_MIN		1400000
+#define I9XX_VCO_MAX		2800000
+#define I9XX_N_MIN		      3
+#define I9XX_N_MAX		      8
+#define I9XX_M_MIN		     70
+#define I9XX_M_MAX		    120
+#define I9XX_M1_MIN		     10
+#define I9XX_M1_MAX		     20
+#define I9XX_M2_MIN		      5
+#define I9XX_M2_MAX		      9
+#define I9XX_P_SDVO_DAC_MIN	      5
+#define I9XX_P_SDVO_DAC_MAX	     80
+#define I9XX_P_LVDS_MIN		      7
+#define I9XX_P_LVDS_MAX		     98
+#define I9XX_P1_MIN		      1
+#define I9XX_P1_MAX		      8
+#define I9XX_P2_SDVO_DAC_SLOW		     10
+#define I9XX_P2_SDVO_DAC_FAST		      5
+#define I9XX_P2_SDVO_DAC_SLOW_LIMIT	 200000
+#define I9XX_P2_LVDS_SLOW		     14
+#define I9XX_P2_LVDS_FAST		      7
+#define I9XX_P2_LVDS_SLOW_LIMIT		 112000
+
+#define INTEL_LIMIT_I8XX_DVO_DAC    0
+#define INTEL_LIMIT_I8XX_LVDS	    1
+#define INTEL_LIMIT_I9XX_SDVO_DAC   2
+#define INTEL_LIMIT_I9XX_LVDS	    3
 
 static const struct psb_intel_limit_t psb_intel_limits[] = {
+	{			/* INTEL_LIMIT_I8XX_DVO_DAC */
+	 .dot = {.min = I8XX_DOT_MIN, .max = I8XX_DOT_MAX},
+	 .vco = {.min = I8XX_VCO_MIN, .max = I8XX_VCO_MAX},
+	 .n = {.min = I8XX_N_MIN, .max = I8XX_N_MAX},
+	 .m = {.min = I8XX_M_MIN, .max = I8XX_M_MAX},
+	 .m1 = {.min = I8XX_M1_MIN, .max = I8XX_M1_MAX},
+	 .m2 = {.min = I8XX_M2_MIN, .max = I8XX_M2_MAX},
+	 .p = {.min = I8XX_P_MIN, .max = I8XX_P_MAX},
+	 .p1 = {.min = I8XX_P1_MIN, .max = I8XX_P1_MAX},
+	 .p2 = {.dot_limit = I8XX_P2_SLOW_LIMIT,
+		.p2_slow = I8XX_P2_SLOW, .p2_fast = I8XX_P2_FAST},
+	 },
+	{			/* INTEL_LIMIT_I8XX_LVDS */
+	 .dot = {.min = I8XX_DOT_MIN, .max = I8XX_DOT_MAX},
+	 .vco = {.min = I8XX_VCO_MIN, .max = I8XX_VCO_MAX},
+	 .n = {.min = I8XX_N_MIN, .max = I8XX_N_MAX},
+	 .m = {.min = I8XX_M_MIN, .max = I8XX_M_MAX},
+	 .m1 = {.min = I8XX_M1_MIN, .max = I8XX_M1_MAX},
+	 .m2 = {.min = I8XX_M2_MIN, .max = I8XX_M2_MAX},
+	 .p = {.min = I8XX_P_MIN, .max = I8XX_P_MAX},
+	 .p1 = {.min = I8XX_P1_LVDS_MIN, .max = I8XX_P1_LVDS_MAX},
+	 .p2 = {.dot_limit = I8XX_P2_SLOW_LIMIT,
+		.p2_slow = I8XX_P2_LVDS_SLOW, .p2_fast = I8XX_P2_LVDS_FAST},
+	 },
 	{			/* INTEL_LIMIT_I9XX_SDVO_DAC */
-	 .dot = {.min = 20000, .max = 400000},
-	 .vco = {.min = 1400000, .max = 2800000},
-	 .n = {.min = 1, .max = 6},
-	 .m = {.min = 70, .max = 120},
-	 .m1 = {.min = 8, .max = 18},
-	 .m2 = {.min = 3, .max = 7},
-	 .p = {.min = 5, .max = 80},
-	 .p1 = {.min = 1, .max = 8},
-	 .p2 = {.dot_limit = 200000,
-		.p2_slow = 10, .p2_fast = 5},
+	 .dot = {.min = I9XX_DOT_MIN, .max = I9XX_DOT_MAX},
+	 .vco = {.min = I9XX_VCO_MIN, .max = I9XX_VCO_MAX},
+	 .n = {.min = I9XX_N_MIN, .max = I9XX_N_MAX},
+	 .m = {.min = I9XX_M_MIN, .max = I9XX_M_MAX},
+	 .m1 = {.min = I9XX_M1_MIN, .max = I9XX_M1_MAX},
+	 .m2 = {.min = I9XX_M2_MIN, .max = I9XX_M2_MAX},
+	 .p = {.min = I9XX_P_SDVO_DAC_MIN, .max = I9XX_P_SDVO_DAC_MAX},
+	 .p1 = {.min = I9XX_P1_MIN, .max = I9XX_P1_MAX},
+	 .p2 = {.dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
+		.p2_slow = I9XX_P2_SDVO_DAC_SLOW, .p2_fast =
+		I9XX_P2_SDVO_DAC_FAST},
 	 },
 	{			/* INTEL_LIMIT_I9XX_LVDS */
-	 .dot = {.min = 20000, .max = 400000},
-	 .vco = {.min = 1400000, .max = 2800000},
-	 .n = {.min = 1, .max = 6},
-	 .m = {.min = 70, .max = 120},
-	 .m1 = {.min = 8, .max = 18},
-	 .m2 = {.min = 3, .max = 7},
-	 .p = {.min = 7, .max = 98},
-	 .p1 = {.min = 1, .max = 8},
+	 .dot = {.min = I9XX_DOT_MIN, .max = I9XX_DOT_MAX},
+	 .vco = {.min = I9XX_VCO_MIN, .max = I9XX_VCO_MAX},
+	 .n = {.min = I9XX_N_MIN, .max = I9XX_N_MAX},
+	 .m = {.min = I9XX_M_MIN, .max = I9XX_M_MAX},
+	 .m1 = {.min = I9XX_M1_MIN, .max = I9XX_M1_MAX},
+	 .m2 = {.min = I9XX_M2_MIN, .max = I9XX_M2_MAX},
+	 .p = {.min = I9XX_P_LVDS_MIN, .max = I9XX_P_LVDS_MAX},
+	 .p1 = {.min = I9XX_P1_MIN, .max = I9XX_P1_MAX},
 	 /* The single-channel range is 25-112Mhz, and dual-channel
 	  * is 80-224Mhz.  Prefer single channel as much as possible.
 	  */
-	 .p2 = {.dot_limit = 112000,
-		.p2_slow = 14, .p2_fast = 7},
+	 .p2 = {.dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
+		.p2_slow = I9XX_P2_LVDS_SLOW, .p2_fast = I9XX_P2_LVDS_FAST},
 	 },
 };
 
@@ -99,12 +177,30 @@ static const struct psb_intel_limit_t *psb_intel_limit(struct drm_crtc *crtc)
 	return limit;
 }
 
-static void psb_intel_clock(int refclk, struct psb_intel_clock_t *clock)
+/** Derive the pixel clock for the given refclk and divisors for 8xx chips. */
+
+static void i8xx_clock(int refclk, struct psb_intel_clock_t *clock)
 {
 	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
 	clock->p = clock->p1 * clock->p2;
 	clock->vco = refclk * clock->m / (clock->n + 2);
 	clock->dot = clock->vco / clock->p;
+}
+
+/** Derive the pixel clock for the given refclk and divisors for 9xx chips. */
+
+static void i9xx_clock(int refclk, struct psb_intel_clock_t *clock)
+{
+	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
+	clock->p = clock->p1 * clock->p2;
+	clock->vco = refclk * clock->m / (clock->n + 2);
+	clock->dot = clock->vco / clock->p;
+}
+
+static void psb_intel_clock(struct drm_device *dev, int refclk,
+			struct psb_intel_clock_t *clock)
+{
+	return i9xx_clock(refclk, clock);
 }
 
 /**
@@ -212,7 +308,7 @@ static bool psb_intel_find_best_PLL(struct drm_crtc *crtc, int target,
 				     clock.p1++) {
 					int this_err;
 
-					psb_intel_clock(refclk, &clock);
+					psb_intel_clock(dev, refclk, &clock);
 
 					if (!psb_intel_PLL_is_valid
 					    (crtc, &clock))
@@ -241,12 +337,15 @@ static int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	/* struct drm_i915_master_private *master_priv; */
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
 	int pipe = psb_intel_crtc->pipe;
-	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
+	int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
+	int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
+	int dspstride = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
+	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
 	u32 dspcntr;
 	int ret = 0;
 
@@ -268,9 +367,9 @@ static int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 
 	offset = y * crtc->fb->pitches[0] + x * (crtc->fb->bits_per_pixel / 8);
 
-	REG_WRITE(map->stride, crtc->fb->pitches[0]);
+	REG_WRITE(dspstride, crtc->fb->pitches[0]);
 
-	dspcntr = REG_READ(map->cntr);
+	dspcntr = REG_READ(dspcntr_reg);
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 
 	switch (crtc->fb->bits_per_pixel) {
@@ -293,10 +392,18 @@ static int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 		psb_gtt_unpin(psbfb->gtt);
 		goto psb_intel_pipe_set_base_exit;
 	}
-	REG_WRITE(map->cntr, dspcntr);
+	REG_WRITE(dspcntr_reg, dspcntr);
 
-	REG_WRITE(map->base, start + offset);
-	REG_READ(map->base);
+
+	if (0 /* FIXMEAC - check what PSB needs */) {
+		REG_WRITE(dspbase, offset);
+		REG_READ(dspbase);
+		REG_WRITE(dspsurf, start);
+		REG_READ(dspsurf);
+	} else {
+		REG_WRITE(dspbase, start + offset);
+		REG_READ(dspbase);
+	}
 
 psb_intel_pipe_cleaner:
 	/* If there was a previous display we can now unpin it */
@@ -317,10 +424,14 @@ psb_intel_pipe_set_base_exit:
 static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	/* struct drm_i915_master_private *master_priv; */
+	/* struct drm_i915_private *dev_priv = dev->dev_private; */
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
-	const struct psb_offset *map = &dev_priv->regmap[pipe];
+	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+	int dspbase_reg = (pipe == 0) ? DSPABASE : DSPBBASE;
+	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	u32 temp;
 
 	/* XXX: When our outputs are all unaware of DPMS modes other than off
@@ -331,34 +442,34 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 		/* Enable the DPLL */
-		temp = REG_READ(map->dpll);
+		temp = REG_READ(dpll_reg);
 		if ((temp & DPLL_VCO_ENABLE) == 0) {
-			REG_WRITE(map->dpll, temp);
-			REG_READ(map->dpll);
+			REG_WRITE(dpll_reg, temp);
+			REG_READ(dpll_reg);
 			/* Wait for the clocks to stabilize. */
 			udelay(150);
-			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
+			REG_WRITE(dpll_reg, temp | DPLL_VCO_ENABLE);
+			REG_READ(dpll_reg);
 			/* Wait for the clocks to stabilize. */
 			udelay(150);
-			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
+			REG_WRITE(dpll_reg, temp | DPLL_VCO_ENABLE);
+			REG_READ(dpll_reg);
 			/* Wait for the clocks to stabilize. */
 			udelay(150);
 		}
 
 		/* Enable the pipe */
-		temp = REG_READ(map->conf);
+		temp = REG_READ(pipeconf_reg);
 		if ((temp & PIPEACONF_ENABLE) == 0)
-			REG_WRITE(map->conf, temp | PIPEACONF_ENABLE);
+			REG_WRITE(pipeconf_reg, temp | PIPEACONF_ENABLE);
 
 		/* Enable the plane */
-		temp = REG_READ(map->cntr);
+		temp = REG_READ(dspcntr_reg);
 		if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
-			REG_WRITE(map->cntr,
+			REG_WRITE(dspcntr_reg,
 				  temp | DISPLAY_PLANE_ENABLE);
 			/* Flush the plane changes */
-			REG_WRITE(map->base, REG_READ(map->base));
+			REG_WRITE(dspbase_reg, REG_READ(dspbase_reg));
 		}
 
 		psb_intel_crtc_load_lut(crtc);
@@ -376,29 +487,29 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		REG_WRITE(VGACNTRL, VGA_DISP_DISABLE);
 
 		/* Disable display plane */
-		temp = REG_READ(map->cntr);
+		temp = REG_READ(dspcntr_reg);
 		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
-			REG_WRITE(map->cntr,
+			REG_WRITE(dspcntr_reg,
 				  temp & ~DISPLAY_PLANE_ENABLE);
 			/* Flush the plane changes */
-			REG_WRITE(map->base, REG_READ(map->base));
-			REG_READ(map->base);
+			REG_WRITE(dspbase_reg, REG_READ(dspbase_reg));
+			REG_READ(dspbase_reg);
 		}
 
 		/* Next, disable display pipes */
-		temp = REG_READ(map->conf);
+		temp = REG_READ(pipeconf_reg);
 		if ((temp & PIPEACONF_ENABLE) != 0) {
-			REG_WRITE(map->conf, temp & ~PIPEACONF_ENABLE);
-			REG_READ(map->conf);
+			REG_WRITE(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
+			REG_READ(pipeconf_reg);
 		}
 
 		/* Wait for vblank for the disable to take effect. */
 		psb_intel_wait_for_vblank(dev);
 
-		temp = REG_READ(map->dpll);
+		temp = REG_READ(dpll_reg);
 		if ((temp & DPLL_VCO_ENABLE) != 0) {
-			REG_WRITE(map->dpll, temp & ~DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
+			REG_WRITE(dpll_reg, temp & ~DPLL_VCO_ENABLE);
+			REG_READ(dpll_reg);
 		}
 
 		/* Wait for the clocks to turn off. */
@@ -447,7 +558,7 @@ void psb_intel_encoder_destroy(struct drm_encoder *encoder)
 }
 
 static bool psb_intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
+				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	return true;
@@ -478,11 +589,22 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	int pipe = psb_intel_crtc->pipe;
-	const struct psb_offset *map = &dev_priv->regmap[pipe];
+	int fp_reg = (pipe == 0) ? FPA0 : FPB0;
+	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+	int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
+	int hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
+	int hsync_reg = (pipe == 0) ? HSYNC_A : HSYNC_B;
+	int vtot_reg = (pipe == 0) ? VTOTAL_A : VTOTAL_B;
+	int vblank_reg = (pipe == 0) ? VBLANK_A : VBLANK_B;
+	int vsync_reg = (pipe == 0) ? VSYNC_A : VSYNC_B;
+	int dspsize_reg = (pipe == 0) ? DSPASIZE : DSPBSIZE;
+	int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
+	int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
 	int refclk;
 	struct psb_intel_clock_t clock;
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
@@ -568,7 +690,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	dpll |= PLL_REF_INPUT_DREFCLK;
 
 	/* setup pipeconf */
-	pipeconf = REG_READ(map->conf);
+	pipeconf = REG_READ(pipeconf_reg);
 
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
@@ -590,9 +712,9 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	drm_mode_debug_printmodeline(mode);
 
 	if (dpll & DPLL_VCO_ENABLE) {
-		REG_WRITE(map->fp0, fp);
-		REG_WRITE(map->dpll, dpll & ~DPLL_VCO_ENABLE);
-		REG_READ(map->dpll);
+		REG_WRITE(fp_reg, fp);
+		REG_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
+		REG_READ(dpll_reg);
 		udelay(150);
 	}
 
@@ -625,45 +747,45 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 		REG_READ(LVDS);
 	}
 
-	REG_WRITE(map->fp0, fp);
-	REG_WRITE(map->dpll, dpll);
-	REG_READ(map->dpll);
+	REG_WRITE(fp_reg, fp);
+	REG_WRITE(dpll_reg, dpll);
+	REG_READ(dpll_reg);
 	/* Wait for the clocks to stabilize. */
 	udelay(150);
 
 	/* write it again -- the BIOS does, after all */
-	REG_WRITE(map->dpll, dpll);
+	REG_WRITE(dpll_reg, dpll);
 
-	REG_READ(map->dpll);
+	REG_READ(dpll_reg);
 	/* Wait for the clocks to stabilize. */
 	udelay(150);
 
-	REG_WRITE(map->htotal, (adjusted_mode->crtc_hdisplay - 1) |
+	REG_WRITE(htot_reg, (adjusted_mode->crtc_hdisplay - 1) |
 		  ((adjusted_mode->crtc_htotal - 1) << 16));
-	REG_WRITE(map->hblank, (adjusted_mode->crtc_hblank_start - 1) |
+	REG_WRITE(hblank_reg, (adjusted_mode->crtc_hblank_start - 1) |
 		  ((adjusted_mode->crtc_hblank_end - 1) << 16));
-	REG_WRITE(map->hsync, (adjusted_mode->crtc_hsync_start - 1) |
+	REG_WRITE(hsync_reg, (adjusted_mode->crtc_hsync_start - 1) |
 		  ((adjusted_mode->crtc_hsync_end - 1) << 16));
-	REG_WRITE(map->vtotal, (adjusted_mode->crtc_vdisplay - 1) |
+	REG_WRITE(vtot_reg, (adjusted_mode->crtc_vdisplay - 1) |
 		  ((adjusted_mode->crtc_vtotal - 1) << 16));
-	REG_WRITE(map->vblank, (adjusted_mode->crtc_vblank_start - 1) |
+	REG_WRITE(vblank_reg, (adjusted_mode->crtc_vblank_start - 1) |
 		  ((adjusted_mode->crtc_vblank_end - 1) << 16));
-	REG_WRITE(map->vsync, (adjusted_mode->crtc_vsync_start - 1) |
+	REG_WRITE(vsync_reg, (adjusted_mode->crtc_vsync_start - 1) |
 		  ((adjusted_mode->crtc_vsync_end - 1) << 16));
 	/* pipesrc and dspsize control the size that is scaled from,
 	 * which should always be the user's requested size.
 	 */
-	REG_WRITE(map->size,
+	REG_WRITE(dspsize_reg,
 		  ((mode->vdisplay - 1) << 16) | (mode->hdisplay - 1));
-	REG_WRITE(map->pos, 0);
-	REG_WRITE(map->src,
+	REG_WRITE(dsppos_reg, 0);
+	REG_WRITE(pipesrc_reg,
 		  ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
-	REG_WRITE(map->conf, pipeconf);
-	REG_READ(map->conf);
+	REG_WRITE(pipeconf_reg, pipeconf);
+	REG_READ(pipeconf_reg);
 
 	psb_intel_wait_for_vblank(dev);
 
-	REG_WRITE(map->cntr, dspcntr);
+	REG_WRITE(dspcntr_reg, dspcntr);
 
 	/* Flush the plane changes */
 	crtc_funcs->mode_set_base(crtc, x, y, old_fb);
@@ -677,10 +799,10 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv =
+				(struct drm_psb_private *)dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
-	int palreg = map->palette;
+	int palreg = PALETTE_A;
 	int i;
 
 	/* The clocks have to be on to load the palette. */
@@ -689,7 +811,12 @@ void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
 
 	switch (psb_intel_crtc->pipe) {
 	case 0:
+		break;
 	case 1:
+		palreg = PALETTE_B;
+		break;
+	case 2:
+		palreg = PALETTE_C;
 		break;
 	default:
 		dev_err(dev->dev, "Illegal Pipe Number.\n");
@@ -709,7 +836,7 @@ void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
 		gma_power_end(dev);
 	} else {
 		for (i = 0; i < 256; i++) {
-			dev_priv->regs.pipe[0].palette[i] =
+			dev_priv->regs.psb.save_palette_a[i] =
 				  ((psb_intel_crtc->lut_r[i] +
 				  psb_intel_crtc->lut_adj[i]) << 16) |
 				  ((psb_intel_crtc->lut_g[i] +
@@ -727,10 +854,11 @@ void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
 static void psb_intel_crtc_save(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	/* struct drm_psb_private *dev_priv =
+			(struct drm_psb_private *)dev->dev_private; */
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct psb_intel_crtc_state *crtc_state = psb_intel_crtc->crtc_state;
-	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
+	int pipeA = (psb_intel_crtc->pipe == 0);
 	uint32_t paletteReg;
 	int i;
 
@@ -739,27 +867,27 @@ static void psb_intel_crtc_save(struct drm_crtc *crtc)
 		return;
 	}
 
-	crtc_state->saveDSPCNTR = REG_READ(map->cntr);
-	crtc_state->savePIPECONF = REG_READ(map->conf);
-	crtc_state->savePIPESRC = REG_READ(map->src);
-	crtc_state->saveFP0 = REG_READ(map->fp0);
-	crtc_state->saveFP1 = REG_READ(map->fp1);
-	crtc_state->saveDPLL = REG_READ(map->dpll);
-	crtc_state->saveHTOTAL = REG_READ(map->htotal);
-	crtc_state->saveHBLANK = REG_READ(map->hblank);
-	crtc_state->saveHSYNC = REG_READ(map->hsync);
-	crtc_state->saveVTOTAL = REG_READ(map->vtotal);
-	crtc_state->saveVBLANK = REG_READ(map->vblank);
-	crtc_state->saveVSYNC = REG_READ(map->vsync);
-	crtc_state->saveDSPSTRIDE = REG_READ(map->stride);
+	crtc_state->saveDSPCNTR = REG_READ(pipeA ? DSPACNTR : DSPBCNTR);
+	crtc_state->savePIPECONF = REG_READ(pipeA ? PIPEACONF : PIPEBCONF);
+	crtc_state->savePIPESRC = REG_READ(pipeA ? PIPEASRC : PIPEBSRC);
+	crtc_state->saveFP0 = REG_READ(pipeA ? FPA0 : FPB0);
+	crtc_state->saveFP1 = REG_READ(pipeA ? FPA1 : FPB1);
+	crtc_state->saveDPLL = REG_READ(pipeA ? DPLL_A : DPLL_B);
+	crtc_state->saveHTOTAL = REG_READ(pipeA ? HTOTAL_A : HTOTAL_B);
+	crtc_state->saveHBLANK = REG_READ(pipeA ? HBLANK_A : HBLANK_B);
+	crtc_state->saveHSYNC = REG_READ(pipeA ? HSYNC_A : HSYNC_B);
+	crtc_state->saveVTOTAL = REG_READ(pipeA ? VTOTAL_A : VTOTAL_B);
+	crtc_state->saveVBLANK = REG_READ(pipeA ? VBLANK_A : VBLANK_B);
+	crtc_state->saveVSYNC = REG_READ(pipeA ? VSYNC_A : VSYNC_B);
+	crtc_state->saveDSPSTRIDE = REG_READ(pipeA ? DSPASTRIDE : DSPBSTRIDE);
 
 	/*NOTE: DSPSIZE DSPPOS only for psb*/
-	crtc_state->saveDSPSIZE = REG_READ(map->size);
-	crtc_state->saveDSPPOS = REG_READ(map->pos);
+	crtc_state->saveDSPSIZE = REG_READ(pipeA ? DSPASIZE : DSPBSIZE);
+	crtc_state->saveDSPPOS = REG_READ(pipeA ? DSPAPOS : DSPBPOS);
 
-	crtc_state->saveDSPBASE = REG_READ(map->base);
+	crtc_state->saveDSPBASE = REG_READ(pipeA ? DSPABASE : DSPBBASE);
 
-	paletteReg = map->palette;
+	paletteReg = pipeA ? PALETTE_A : PALETTE_B;
 	for (i = 0; i < 256; ++i)
 		crtc_state->savePalette[i] = REG_READ(paletteReg + (i << 2));
 }
@@ -770,10 +898,12 @@ static void psb_intel_crtc_save(struct drm_crtc *crtc)
 static void psb_intel_crtc_restore(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	/* struct drm_psb_private * dev_priv =
+				(struct drm_psb_private *)dev->dev_private; */
 	struct psb_intel_crtc *psb_intel_crtc =  to_psb_intel_crtc(crtc);
 	struct psb_intel_crtc_state *crtc_state = psb_intel_crtc->crtc_state;
-	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
+	/* struct drm_crtc_helper_funcs * crtc_funcs = crtc->helper_private; */
+	int pipeA = (psb_intel_crtc->pipe == 0);
 	uint32_t paletteReg;
 	int i;
 
@@ -783,45 +913,45 @@ static void psb_intel_crtc_restore(struct drm_crtc *crtc)
 	}
 
 	if (crtc_state->saveDPLL & DPLL_VCO_ENABLE) {
-		REG_WRITE(map->dpll,
+		REG_WRITE(pipeA ? DPLL_A : DPLL_B,
 			crtc_state->saveDPLL & ~DPLL_VCO_ENABLE);
-		REG_READ(map->dpll);
+		REG_READ(pipeA ? DPLL_A : DPLL_B);
 		udelay(150);
 	}
 
-	REG_WRITE(map->fp0, crtc_state->saveFP0);
-	REG_READ(map->fp0);
+	REG_WRITE(pipeA ? FPA0 : FPB0, crtc_state->saveFP0);
+	REG_READ(pipeA ? FPA0 : FPB0);
 
-	REG_WRITE(map->fp1, crtc_state->saveFP1);
-	REG_READ(map->fp1);
+	REG_WRITE(pipeA ? FPA1 : FPB1, crtc_state->saveFP1);
+	REG_READ(pipeA ? FPA1 : FPB1);
 
-	REG_WRITE(map->dpll, crtc_state->saveDPLL);
-	REG_READ(map->dpll);
+	REG_WRITE(pipeA ? DPLL_A : DPLL_B, crtc_state->saveDPLL);
+	REG_READ(pipeA ? DPLL_A : DPLL_B);
 	udelay(150);
 
-	REG_WRITE(map->htotal, crtc_state->saveHTOTAL);
-	REG_WRITE(map->hblank, crtc_state->saveHBLANK);
-	REG_WRITE(map->hsync, crtc_state->saveHSYNC);
-	REG_WRITE(map->vtotal, crtc_state->saveVTOTAL);
-	REG_WRITE(map->vblank, crtc_state->saveVBLANK);
-	REG_WRITE(map->vsync, crtc_state->saveVSYNC);
-	REG_WRITE(map->stride, crtc_state->saveDSPSTRIDE);
+	REG_WRITE(pipeA ? HTOTAL_A : HTOTAL_B, crtc_state->saveHTOTAL);
+	REG_WRITE(pipeA ? HBLANK_A : HBLANK_B, crtc_state->saveHBLANK);
+	REG_WRITE(pipeA ? HSYNC_A : HSYNC_B, crtc_state->saveHSYNC);
+	REG_WRITE(pipeA ? VTOTAL_A : VTOTAL_B, crtc_state->saveVTOTAL);
+	REG_WRITE(pipeA ? VBLANK_A : VBLANK_B, crtc_state->saveVBLANK);
+	REG_WRITE(pipeA ? VSYNC_A : VSYNC_B, crtc_state->saveVSYNC);
+	REG_WRITE(pipeA ? DSPASTRIDE : DSPBSTRIDE, crtc_state->saveDSPSTRIDE);
 
-	REG_WRITE(map->size, crtc_state->saveDSPSIZE);
-	REG_WRITE(map->pos, crtc_state->saveDSPPOS);
+	REG_WRITE(pipeA ? DSPASIZE : DSPBSIZE, crtc_state->saveDSPSIZE);
+	REG_WRITE(pipeA ? DSPAPOS : DSPBPOS, crtc_state->saveDSPPOS);
 
-	REG_WRITE(map->src, crtc_state->savePIPESRC);
-	REG_WRITE(map->base, crtc_state->saveDSPBASE);
-	REG_WRITE(map->conf, crtc_state->savePIPECONF);
-
-	psb_intel_wait_for_vblank(dev);
-
-	REG_WRITE(map->cntr, crtc_state->saveDSPCNTR);
-	REG_WRITE(map->base, crtc_state->saveDSPBASE);
+	REG_WRITE(pipeA ? PIPEASRC : PIPEBSRC, crtc_state->savePIPESRC);
+	REG_WRITE(pipeA ? DSPABASE : DSPBBASE, crtc_state->saveDSPBASE);
+	REG_WRITE(pipeA ? PIPEACONF : PIPEBCONF, crtc_state->savePIPECONF);
 
 	psb_intel_wait_for_vblank(dev);
 
-	paletteReg = map->palette;
+	REG_WRITE(pipeA ? DSPACNTR : DSPBCNTR, crtc_state->saveDSPCNTR);
+	REG_WRITE(pipeA ? DSPABASE : DSPBBASE, crtc_state->saveDSPBASE);
+
+	psb_intel_wait_for_vblank(dev);
+
+	paletteReg = pipeA ? PALETTE_A : PALETTE_B;
 	for (i = 0; i < 256; ++i)
 		REG_WRITE(paletteReg + (i << 2), crtc_state->savePalette[i]);
 }
@@ -832,7 +962,6 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 				 uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
 	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
@@ -840,10 +969,8 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	uint32_t temp;
 	size_t addr = 0;
 	struct gtt_range *gt;
-	struct gtt_range *cursor_gt = psb_intel_crtc->cursor_gt;
 	struct drm_gem_object *obj;
-	void *tmp_dst, *tmp_src;
-	int ret = 0, i, cursor_pages;
+	int ret;
 
 	/* if we want to turn of the cursor ignore width and height */
 	if (!handle) {
@@ -880,8 +1007,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	if (obj->size < width * height * 4) {
 		dev_dbg(dev->dev, "buffer is to small\n");
-		ret = -ENOMEM;
-		goto unref_cursor;
+		return -ENOMEM;
 	}
 
 	gt = container_of(obj, struct gtt_range, gem);
@@ -890,36 +1016,13 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	ret = psb_gtt_pin(gt);
 	if (ret) {
 		dev_err(dev->dev, "Can not pin down handle 0x%x\n", handle);
-		goto unref_cursor;
+		return ret;
 	}
 
-	if (dev_priv->ops->cursor_needs_phys) {
-		if (cursor_gt == NULL) {
-			dev_err(dev->dev, "No hardware cursor mem available");
-			ret = -ENOMEM;
-			goto unref_cursor;
-		}
 
-		/* Prevent overflow */
-		if (gt->npage > 4)
-			cursor_pages = 4;
-		else
-			cursor_pages = gt->npage;
+	addr = gt->offset;	/* Or resource.start ??? */
 
-		/* Copy the cursor to cursor mem */
-		tmp_dst = dev_priv->vram_addr + cursor_gt->offset;
-		for (i = 0; i < cursor_pages; i++) {
-			tmp_src = kmap(gt->pages[i]);
-			memcpy(tmp_dst, tmp_src, PAGE_SIZE);
-			kunmap(gt->pages[i]);
-			tmp_dst += PAGE_SIZE;
-		}
-
-		addr = psb_intel_crtc->cursor_addr;
-	} else {
-		addr = gt->offset;      /* Or resource.start ??? */
-		psb_intel_crtc->cursor_addr = addr;
-	}
+	psb_intel_crtc->cursor_addr = addr;
 
 	temp = 0;
 	/* set the pipe for the cursor */
@@ -938,14 +1041,9 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 							struct gtt_range, gem);
 		psb_gtt_unpin(gt);
 		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
+		psb_intel_crtc->cursor_obj = obj;
 	}
-
-	psb_intel_crtc->cursor_obj = obj;
-	return ret;
-
-unref_cursor:
-	drm_gem_object_unreference(obj);
-	return ret;
+	return 0;
 }
 
 static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
@@ -979,7 +1077,7 @@ static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
-static void psb_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
+void psb_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
 			 u16 *green, u16 *blue, uint32_t type, uint32_t size)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
@@ -1017,30 +1115,34 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 				struct drm_crtc *crtc)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	struct drm_psb_private *dev_priv = dev->dev_private;
 	int pipe = psb_intel_crtc->pipe;
-	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 dpll;
 	u32 fp;
 	struct psb_intel_clock_t clock;
 	bool is_lvds;
-	struct psb_pipe *p = &dev_priv->regs.pipe[pipe];
+	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	if (gma_power_begin(dev, false)) {
-		dpll = REG_READ(map->dpll);
+		dpll = REG_READ((pipe == 0) ? DPLL_A : DPLL_B);
 		if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-			fp = REG_READ(map->fp0);
+			fp = REG_READ((pipe == 0) ? FPA0 : FPB0);
 		else
-			fp = REG_READ(map->fp1);
+			fp = REG_READ((pipe == 0) ? FPA1 : FPB1);
 		is_lvds = (pipe == 1) && (REG_READ(LVDS) & LVDS_PORT_EN);
 		gma_power_end(dev);
 	} else {
-		dpll = p->dpll;
+		dpll = (pipe == 0) ?
+			dev_priv->regs.psb.saveDPLL_A :
+			dev_priv->regs.psb.saveDPLL_B;
 
 		if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-			fp = p->fp0;
+			fp = (pipe == 0) ?
+				dev_priv->regs.psb.saveFPA0 :
+				dev_priv->regs.psb.saveFPB0;
 		else
-		        fp = p->fp1;
+			fp = (pipe == 0) ?
+				dev_priv->regs.psb.saveFPA1 :
+				dev_priv->regs.psb.saveFPB1;
 
 		is_lvds = (pipe == 1) && (dev_priv->regs.psb.saveLVDS &
 								LVDS_PORT_EN);
@@ -1060,9 +1162,9 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 		if ((dpll & PLL_REF_INPUT_MASK) ==
 		    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
 			/* XXX: might not be 66MHz */
-			psb_intel_clock(66000, &clock);
+			i8xx_clock(66000, &clock);
 		} else
-			psb_intel_clock(48000, &clock);
+			i8xx_clock(48000, &clock);
 	} else {
 		if (dpll & PLL_P1_DIVIDE_BY_TWO)
 			clock.p1 = 2;
@@ -1077,7 +1179,7 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 		else
 			clock.p2 = 2;
 
-		psb_intel_clock(48000, &clock);
+		i8xx_clock(48000, &clock);
 	}
 
 	/* XXX: It would be nice to validate the clocks, but we can't reuse
@@ -1100,20 +1202,26 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 	int vtot;
 	int vsync;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_pipe *p = &dev_priv->regs.pipe[pipe];
-	const struct psb_offset *map = &dev_priv->regmap[pipe];
 
 	if (gma_power_begin(dev, false)) {
-		htot = REG_READ(map->htotal);
-		hsync = REG_READ(map->hsync);
-		vtot = REG_READ(map->vtotal);
-		vsync = REG_READ(map->vsync);
+		htot = REG_READ((pipe == 0) ? HTOTAL_A : HTOTAL_B);
+		hsync = REG_READ((pipe == 0) ? HSYNC_A : HSYNC_B);
+		vtot = REG_READ((pipe == 0) ? VTOTAL_A : VTOTAL_B);
+		vsync = REG_READ((pipe == 0) ? VSYNC_A : VSYNC_B);
 		gma_power_end(dev);
 	} else {
-		htot = p->htotal;
-		hsync = p->hsync;
-		vtot = p->vtotal;
-		vsync = p->vsync;
+		htot = (pipe == 0) ?
+			dev_priv->regs.psb.saveHTOTAL_A :
+			dev_priv->regs.psb.saveHTOTAL_B;
+		hsync = (pipe == 0) ?
+			dev_priv->regs.psb.saveHSYNC_A :
+			dev_priv->regs.psb.saveHSYNC_B;
+		vtot = (pipe == 0) ?
+			dev_priv->regs.psb.saveVTOTAL_A :
+			dev_priv->regs.psb.saveVTOTAL_B;
+		vsync = (pipe == 0) ?
+			dev_priv->regs.psb.saveVSYNC_A :
+			dev_priv->regs.psb.saveVSYNC_B;
 	}
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
@@ -1136,7 +1244,7 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
+void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct gtt_range *gt;
@@ -1149,25 +1257,9 @@ static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
 		psb_intel_crtc->cursor_obj = NULL;
 	}
-
-	if (psb_intel_crtc->cursor_gt != NULL)
-		psb_gtt_free_range(crtc->dev, psb_intel_crtc->cursor_gt);
 	kfree(psb_intel_crtc->crtc_state);
 	drm_crtc_cleanup(crtc);
 	kfree(psb_intel_crtc);
-}
-
-static void psb_intel_crtc_disable(struct drm_crtc *crtc)
-{
-	struct gtt_range *gt;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-
-	if (crtc->fb) {
-		gt = to_psb_fb(crtc->fb)->gtt;
-		psb_gtt_unpin(gt);
-	}
 }
 
 const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
@@ -1177,7 +1269,6 @@ const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.mode_set_base = psb_intel_pipe_set_base,
 	.prepare = psb_intel_crtc_prepare,
 	.commit = psb_intel_crtc_commit,
-	.disable = psb_intel_crtc_disable,
 };
 
 const struct drm_crtc_funcs psb_intel_crtc_funcs = {
@@ -1194,33 +1285,13 @@ const struct drm_crtc_funcs psb_intel_crtc_funcs = {
  * Set the default value of cursor control and base register
  * to zero. This is a workaround for h/w defect on Oaktrail
  */
-static void psb_intel_cursor_init(struct drm_device *dev,
-				  struct psb_intel_crtc *psb_intel_crtc)
+static void psb_intel_cursor_init(struct drm_device *dev, int pipe)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 control[3] = { CURACNTR, CURBCNTR, CURCCNTR };
 	u32 base[3] = { CURABASE, CURBBASE, CURCBASE };
-	struct gtt_range *cursor_gt;
 
-	if (dev_priv->ops->cursor_needs_phys) {
-		/* Allocate 4 pages of stolen mem for a hardware cursor. That
-		 * is enough for the 64 x 64 ARGB cursors we support.
-		 */
-		cursor_gt = psb_gtt_alloc_range(dev, 4 * PAGE_SIZE, "cursor", 1);
-		if (!cursor_gt) {
-			psb_intel_crtc->cursor_gt = NULL;
-			goto out;
-		}
-		psb_intel_crtc->cursor_gt = cursor_gt;
-		psb_intel_crtc->cursor_addr = dev_priv->stolen_base +
-							cursor_gt->offset;
-	} else {
-		psb_intel_crtc->cursor_gt = NULL;
-	}
-
-out:
-	REG_WRITE(control[psb_intel_crtc->pipe], 0);
-	REG_WRITE(base[psb_intel_crtc->pipe], 0);
+	REG_WRITE(control[pipe], 0);
+	REG_WRITE(base[pipe], 0);
 }
 
 void psb_intel_crtc_init(struct drm_device *dev, int pipe,
@@ -1286,10 +1357,7 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	psb_intel_crtc->mode_set.connectors =
 	    (struct drm_connector **) (psb_intel_crtc + 1);
 	psb_intel_crtc->mode_set.num_connectors = 0;
-	psb_intel_cursor_init(dev, psb_intel_crtc);
-
-	/* Set to true so that the pipe is forced off on initial config. */
-	psb_intel_crtc->active = true;
+	psb_intel_cursor_init(dev, pipe);
 }
 
 int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,

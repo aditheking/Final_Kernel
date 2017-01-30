@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -262,8 +262,6 @@ struct mdss_edp_drv_pdata {
 	struct mutex emutex;
 	int clk_cnt;
 	int cont_splash;
-	bool inited;
-	int delay_link_train;
 
 	/* edp specific */
 	unsigned char *base;
@@ -273,7 +271,6 @@ struct mdss_edp_drv_pdata {
 	u32 mask2;
 
 	struct mdss_panel_data panel_data;
-	struct mdss_util_intf *mdss_util;
 
 	int edp_on_cnt;
 	int edp_off_cnt;
@@ -301,11 +298,9 @@ struct mdss_edp_drv_pdata {
 
 	/* gpios */
 	int gpio_panel_en;
-	int gpio_lvl_en;
 
 	/* backlight */
 	struct pwm_device *bl_pwm;
-	bool is_pwm_enabled;
 	int lpg_channel;
 	int pwm_period;
 
@@ -320,7 +315,6 @@ struct mdss_edp_drv_pdata {
 	struct completion idle_comp;
 	struct completion video_comp;
 	struct mutex aux_mutex;
-	struct mutex train_mutex;
 	u32 aux_cmd_busy;
 	u32 aux_cmd_i2c;
 	int aux_trans_num;
@@ -333,6 +327,8 @@ struct mdss_edp_drv_pdata {
 	struct dpcd_link_status link_status;
 	char v_level;
 	char p_level;
+//	char link_bw;
+//	char lane_cnt;
 	/* transfer unit */
 	char tu_desired;
 	char valid_boundary;
@@ -347,6 +343,20 @@ struct mdss_edp_drv_pdata {
 	u32 event_todo_list[HPD_EVENT_MAX];
 	spinlock_t event_lock;
 	spinlock_t lock;
+
+#if defined(CONFIG_FB_MSM_EDP_SAMSUNG)
+	/* regulators */
+	struct regulator *i2c_vreg;
+
+	/*samsung pwm related */
+	int gpio_panel_pwm;
+	u32 duty_level;
+
+#if defined(CONFIG_EDP_ESD_FUNCTION)
+	struct work_struct  edp_esd_work;
+	u32 current_bl;
+#endif
+#endif
 };
 
 int mdss_edp_aux_clk_enable(struct mdss_edp_drv_pdata *edp_drv);
@@ -377,4 +387,19 @@ void mdss_edp_config_ctrl(struct mdss_edp_drv_pdata *ep);
 
 void mdss_edp_clk_debug(unsigned char *edp_base, unsigned char *mmss_cc_base);
 
+#if defined(CONFIG_FB_MSM_EDP_SAMSUNG)
+int aux_tx(int addr, char *data, int len);
+void tcon_interanl_clock(void);
+void read_firmware_version(char *string);
+void set_global_ep(struct mdss_edp_drv_pdata *ep);
+struct mdss_edp_drv_pdata *get_global_ep(void);
+
+extern void tcon_pwm_duty(int pwm_duty, int updata_from_backlight);
+extern int config_i2c_lane(int enable);
+
+void mdss_edp_set_backlight(struct mdss_panel_data *pdata, u32 bl_level);
+void set_backlight_first_kick_off(void);
+void edp_reg_dump(void);
+
+#endif
 #endif /* MDSS_EDP_H */
